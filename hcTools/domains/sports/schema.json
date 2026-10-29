@@ -1,0 +1,1899 @@
+{
+ "domain": "体育",
+ "domain_key": "sports",
+ "tools": [
+  {
+   "tool_name": "sports_match_search",
+   "description": "体育赛事赛程组合式搜索工具(sports_match_search)。基于槽位检索赛程，命中后支持单场比赛跳转播放。当用户表达了查询、查找体育赛事赛程/对阵/比赛安排的意图时触发，包括按球队/俱乐部(sport_team，含主队sport_team_home/客队sport_team_guest)、运动员/球星(sport_star)、赛事名称(sport_game)、运动项目(sport_name)、比赛阶段(sport_competition_phase)、相对轮次(round_offset)、赛季(sport_season)、赛事日期(sport_time)等维度筛选，以及按比赛状态(live_state)过滤、赛事时间区间(sport_time_range)筛选的场景。典型用法：'皇马的比赛'、'皇马主场的比赛'、'NBA的比赛'、'中超的比赛'、'今天有什么足球比赛'。支持10个精确匹配维度、1个状态维度(live_state)和1个范围维度(sport_time_range)。布尔组合能力：不同槽位之间支持 AND/OR/NOT 任意嵌套(query 节点的 and/or/not)；同一槽位多值用 operator 选 and/or(默认 or)；NOT 排除用外层 not 节点表达；live_state 多值固定 OR 语义。工具边界：本工具只找赛程(对阵场次)；找体育录像/回放/集锦等点播视频用 sports_vod_search；预约比赛用 sports_match_reservation。",
+   "parameters": {
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "name": "sports_match_search",
+    "description": "体育赛事赛程组合式搜索工具(sports_match_search)。基于槽位检索赛程，命中后支持单场比赛跳转播放。当用户表达了查询、查找体育赛事赛程/对阵/比赛安排的意图时触发，包括按球队/俱乐部(sport_team，含主队sport_team_home/客队sport_team_guest)、运动员/球星(sport_star)、赛事名称(sport_game)、运动项目(sport_name)、比赛阶段(sport_competition_phase)、相对轮次(round_offset)、赛季(sport_season)、赛事日期(sport_time)等维度筛选，以及按比赛状态(live_state)过滤、赛事时间区间(sport_time_range)筛选的场景。典型用法：'皇马的比赛'、'皇马主场的比赛'、'NBA的比赛'、'中超的比赛'、'今天有什么足球比赛'。支持10个精确匹配维度、1个状态维度(live_state)和1个范围维度(sport_time_range)。布尔组合能力：不同槽位之间支持 AND/OR/NOT 任意嵌套(query 节点的 and/or/not)；同一槽位多值用 operator 选 and/or(默认 or)；NOT 排除用外层 not 节点表达；live_state 多值固定 OR 语义。工具边界：本工具只找赛程(对阵场次)；找体育录像/回放/集锦等点播视频用 sports_vod_search；预约比赛用 sports_match_reservation。",
+    "type": "object",
+    "properties": {
+     "query": {
+      "$ref": "#/definitions/QueryNode",
+      "description": "搜索查询的根节点。可以是单个叶子条件，也可以是由 and/or/not 组成的复合布尔节点。"
+     }
+    },
+    "required": [
+     "query"
+    ],
+    "additionalProperties": false,
+    "definitions": {
+     "QueryNode": {
+      "description": "查询节点，支持四种形态：1) AND复合节点；2) OR复合节点；3) NOT取反节点；4) 叶子条件节点(单个字段的匹配条件)。",
+      "oneOf": [
+       {
+        "$ref": "#/definitions/AndNode"
+       },
+       {
+        "$ref": "#/definitions/OrNode"
+       },
+       {
+        "$ref": "#/definitions/NotNode"
+       },
+       {
+        "$ref": "#/definitions/LeafNode"
+       }
+      ]
+     },
+     "AndNode": {
+      "description": "AND逻辑组合节点。所有子节点条件必须同时满足。拼接规则：每个子节点条件用括号包裹，子节点之间用 AND 连接，例如：(sport_team:皇马) AND (sport_name:足球)。",
+      "type": "object",
+      "properties": {
+       "and": {
+        "type": "array",
+        "items": {
+         "$ref": "#/definitions/QueryNode"
+        },
+        "minItems": 1,
+        "description": "AND逻辑：所有子节点条件必须同时满足。拼接时每个子条件用()包裹，子条件间用AND连接。"
+       }
+      },
+      "required": [
+       "and"
+      ],
+      "additionalProperties": false
+     },
+     "OrNode": {
+      "description": "OR逻辑组合节点。任一子节点条件满足即命中。拼接规则：每个子节点条件用括号包裹，子节点之间用 OR 连接，例如：(sport_team:皇马) OR (sport_star:梅西)。用于'或者'、'要么...要么...'类任选其一的表达。注意：同一字段的多个候选值(如'皇马或巴萨')优先用叶子节点的 values+operator=or，不要拆成多个相同字段的 OR 节点。",
+      "type": "object",
+      "properties": {
+       "or": {
+        "type": "array",
+        "items": {
+         "$ref": "#/definitions/QueryNode"
+        },
+        "minItems": 1,
+        "description": "OR逻辑：任一子节点条件满足即命中。拼接时每个子条件用()包裹，子条件间用OR连接。"
+       }
+      },
+      "required": [
+       "or"
+      ],
+      "additionalProperties": false
+     },
+     "NotNode": {
+      "description": "NOT逻辑取反节点。对单个子条件取反。拼接规则：NOT (子条件)，如 NOT (sport_team:皇马)。常用于'除了...以外'、'不要...'类表达。注意：not 只接受单个子节点(对象)，不是数组；要对多个条件同时取反，请用 not 包裹 and/or 复合节点(如 {not:{and:[...]}} 表示'不同时满足这些')。",
+      "type": "object",
+      "properties": {
+       "not": {
+        "$ref": "#/definitions/QueryNode"
+       }
+      },
+      "required": [
+       "not"
+      ],
+      "additionalProperties": false
+     },
+     "LeafNode": {
+      "description": "叶子条件节点，描述对某一搜索维度的具体匹配条件。可以是精确匹配(ExactFieldCondition)、状态匹配(StatusFieldCondition)或范围匹配(RangeFieldCondition)。",
+      "type": "object",
+      "oneOf": [
+       {
+        "$ref": "#/definitions/ExactFieldCondition"
+       },
+       {
+        "$ref": "#/definitions/StatusFieldCondition"
+       },
+       {
+        "$ref": "#/definitions/RangeFieldCondition"
+       }
+      ]
+     },
+     "ExactFieldCondition": {
+      "description": "精确匹配条件。支持两种互斥形态：1) 单值 value → (field:value)；2) 多值 values 配合 operator → operator=and 时 (field:值1) AND (field:值2)，operator=or 时 (field:值1) OR (field:值2)。value/values 二者只能出现其一。",
+      "type": "object",
+      "properties": {
+       "field": {
+        "type": "string",
+        "description": "预约定位维度字段名（共10个精确匹配维度，其中 round_offset 为相对轮次偏移，格式化取值）。候选类型分三类：固定候选(取值有限可枚举，模型应在候选内取值或归一化)、半固定候选(常见取值有限但可扩展，候选值为典型示例而非全集)、开放型(取值不可枚举，按语义自由填入)。多个字段间存在语义边界，需按各 const 描述中的差异化说明选择正确字段。",
+        "oneOf": [
+         {
+          "const": "sport_team",
+          "description": "球队/俱乐部名称(开放型)。检索 team_name 字段，需100%匹配才召回，因此应填写球队规范名或用户原词，不要自行改写。与 sport_team_home/sport_team_guest 不同——sport_team 不区分主客场，是默认选择；只有用户明确说了'主场/客场'才改用对应变体。与 sport_star 不同——sport_team 是团体(俱乐部、国家队)，sport_star 是个人。适用场景如'皇马的比赛'。典型取值：皇家马德里、皇马、曼联、湖人、中国男篮"
+         },
+         {
+          "const": "sport_team_home",
+          "description": "主队名称(开放型)。检索 team_name_home 字段，需100%匹配才召回；标签映射沿用 sportsTeam。仅当用户明确表达主场语义时使用(如'皇马主场的比赛'、'曼联主场的比赛')，否则一律用 sport_team"
+         },
+         {
+          "const": "sport_team_guest",
+          "description": "客队名称(开放型)。检索 team_name_guest 字段，需100%匹配才召回；标签映射沿用 sportsTeam。仅当用户明确表达客场语义时使用(如'皇马客场的比赛'、'做客巴萨')，否则一律用 sport_team"
+         },
+         {
+          "const": "sport_star",
+          "description": "运动员/球星姓名(开放型)。检索 player_name 或 title 字段，任一100%匹配即召回。与 sport_team 不同——sport_star 是个人(梅西、詹姆斯、C罗)，球队名和国家队名(皇马、中国男篮)应归 sport_team。适用场景如'梅西的比赛'、'有詹姆斯的比赛'"
+         },
+         {
+          "const": "sport_game",
+          "description": "赛事/联赛名称(半固定候选)。检索 competition_name 或 competition_alias_name，任一字段满足即召回，因此别名(如'欧冠'对应'欧洲冠军联赛')可直接填用户原词。与 sport_name 不同——sport_game 是具体赛事IP，sport_name 是运动项目大类；'足球比赛'用 sport_name，'欧冠比赛'用 sport_game。适用场景如'NBA的比赛'、'中超的比赛'。典型取值：世界杯、欧冠、欧联杯、英超、西甲、意甲、德甲、法甲、中超、亚冠、欧洲杯、亚洲杯、世俱杯、NBA、CBA、奥运会"
+         },
+         {
+          "const": "sport_name",
+          "description": "运动项目类型(半固定候选)。检索二级分类 child_category_name，其中一个字段满足条件即召回。与 sport_game 不同——sport_name 只描述'什么运动'，不含具体赛事信息；用户同时给出项目和赛事时两个字段可并存(如'足球欧冠')。典型取值：足球、篮球、网球、排球、乒乓球、羽毛球、田径、游泳、赛车、拳击、格斗、台球、高尔夫、冰雪、电竞(候选可扩展，按用户原词填入)"
+         },
+         {
+          "const": "sport_competition_phase",
+          "description": "比赛阶段(半固定候选)。检索 round_name 字段，需100%匹配才召回。与 round_offset 不同——sport_competition_phase 是赛程中的阶段名称(绝对概念)，round_offset 是相对当前的轮次偏移。典型取值：资格赛、小组赛、附加赛、淘汰赛、1/8决赛、四分之一决赛、半决赛、决赛、季后赛、总决赛、常规赛"
+         },
+         {
+          "const": "round_offset",
+          "description": "相对轮次偏移(格式化取值)。作为 query 内普通叶子节点使用。取值为相对当前轮次的整数偏移(字符串形态)：负数表示往前(如'上一轮'→\"-1\"、'上两轮'→\"-2\")，正数表示往后(如'下一轮'→\"1\"、'下两轮'→\"2\")。用 value 承载单值，如 {field:\"round_offset\", value:\"1\"}。与 sport_competition_phase 不同——round_offset 是相对当前的轮次偏移，'第3轮'这类绝对轮次名不属于本字段。不涉及时不传。"
+         },
+         {
+          "const": "sport_season",
+          "description": "赛季(半固定候选)。检索 season_name 字段，需100%匹配才召回。与 sport_time/sport_time_range 不同——sport_season 是赛季标识(跨年周期)，时间字段是具体日期或时刻区间；'2024-2025赛季的比赛'用 sport_season，'2024年7月15日的比赛'用 sport_time。典型取值：2020-2021赛季、20-21赛季、2024-2025赛季、本赛季、上赛季"
+         },
+         {
+          "const": "sport_time",
+          "description": "赛事日期(格式化取值，指具体某一天)。值必须为 yyyyMMdd 格式的单个日期(如20240715)。适用于用户只给出某一天的场景，无论绝对日期(如'6月17日的比赛')还是相对日期(如'今天'、'明天'、'昨天'、'上周一'、'下周五')都归本字段，需按当前日期归一化为 yyyyMMdd 绝对日期。与 sport_time_range 不同——sport_time 是单日匹配(只到天)，sport_time_range 是精确到秒的时刻区间(如'下午3点到5点'、'15:00:00~16:00:00')；二者并非互斥，可在同一次查询中并存，但二者并存只有 OR 一种关系(两个时段比赛的并集)，用 or 节点组合，禁止用 and。注意：当用户并列多个时间范围(如'今天和明天上午的比赛'、'今天或下周的比赛'，'和'/'或'均同义)时，语义都是两个时段比赛的并集，必须用 OR 组合：(sport_time:今天) OR (sport_time_range:明天上午)；不可用 AND(AND 表示同一场比赛要同时落在两个时间，不可能命中)。"
+         }
+        ]
+       },
+       "value": {
+        "type": "string",
+        "description": "单值精确匹配，拼接为 (field:value)。仅传一个候选值时使用；多个候选值请改用 values + operator。"
+       },
+       "values": {
+        "type": "array",
+        "items": {
+         "type": "string"
+        },
+        "minItems": 1,
+        "description": "多值匹配。列表中每个值之间按 operator 指定的逻辑连接；未传 operator 时默认 or。体育场景同字段多值以 OR 居多(如'皇马或巴萨'、'西甲或英超')。注意：表达'或'语义时用 values+operator=or，不要把候选值用逗号拼在单个 value 里。"
+       },
+       "operator": {
+        "type": "string",
+        "enum": [
+         "and",
+         "or"
+        ],
+        "description": "values 多值间的逻辑连接。and=所有值需同时满足(体育场景极少，一场比赛几乎不可能同时属于两支球队/两个赛事，仅'某球队同时打联赛+杯赛'等少数场景可用)；or=任一值满足即命中(常见)。仅对 values 有效；使用 value 单值时不应传本字段。未传时默认 or。"
+       }
+      },
+      "required": [
+       "field"
+      ],
+      "oneOf": [
+       {
+        "required": [
+         "value"
+        ]
+       },
+       {
+        "required": [
+         "values"
+        ]
+       }
+      ],
+      "additionalProperties": false
+     },
+     "StatusFieldCondition": {
+      "description": "状态标识条件(固定候选)。用于取值可枚举的状态字段，与 ExactFieldCondition 中的其他维度不同——状态字段只做状态过滤，不参与球队/球星/赛事等语义匹配。不传表示不涉及该条件。状态字段多值固定为 OR 语义(一场比赛同时只能有一个状态，AND 无意义，故不提供 operator)。",
+      "type": "object",
+      "properties": {
+       "field": {
+        "type": "string",
+        "description": "状态字段名",
+        "oneOf": [
+         {
+          "const": "live_state",
+          "description": "比赛状态(固定候选)。检索 live_state 字段。1=未开始，2=进行中，3=已结束，4=回看。注意：0(合作方未提供实时状态，需按比赛起始时间动态计算)与5时间未定/6推迟/7异常终止/8比赛取消均为无需关注的状态，不要生成"
+         }
+        ]
+       },
+       "value": {
+        "type": "string",
+        "enum": [
+         "1",
+         "2",
+         "3",
+         "4"
+        ],
+        "description": "单状态值。自然语言归一化规则：'还没开始/未开始'→\"1\"；'正在比赛/进行中/直播中'→\"2\"；'回看/录像回放'→\"4\"。用户未提及比赛状态时不传本条件。"
+       },
+       "values": {
+        "type": "array",
+        "items": {
+         "type": "string",
+         "enum": [
+          "1",
+          "2",
+          "3",
+          "4"
+         ]
+        },
+        "minItems": 1,
+        "uniqueItems": true,
+        "description": "多状态值(固定 OR 语义，任一满足即命中)。如'已经结束的/结束了的比赛'→[\"3\",\"4\"] 同时覆盖已结束与回看；'还没开始或正在进行的'→[\"1\",\"2\"]。用户未提及比赛状态时不传本条件。"
+       }
+      },
+      "required": [
+       "field"
+      ],
+      "oneOf": [
+       {
+        "required": [
+         "value"
+        ]
+       },
+       {
+        "required": [
+         "values"
+        ]
+       }
+      ],
+      "additionalProperties": false
+     },
+     "RangeFieldCondition": {
+      "description": "范围匹配条件。支持 sport_time_range(赛事时间区间) 范围字段，from/to 均为 yyyyMMdd HH:mm:ss 格式日期时间字符串，精确到秒。搜索'比赛开始时间'处于 from(含) 和 to(含) 之间的赛程，from 和 to 可以一致。多个时间区间需要 OR/AND 组合时(如'今天下午或明天上午的比赛')，用外层 and/or 节点包裹多个 RangeFieldCondition(每个含一个 sport_time_range)，本条件内部不再支持多值。时间范围生成规则(共四类场景，先判断用户是否已给出明确范围，已给出则不做任何扩展)：1)用户输入具体时间且已给出时间范围(如'今天下午3点到5点的比赛')，直接按用户给出的起止时间填 from/to；2)用户输入具体时间但无范围，以该时间点为起点，根据语义(之前/之后)往前或往后扩展1小时作为另一端，扩展时保留原有的分和秒，例如'今天下午三点的比赛'→from:20240603 15:00:00, to:20240603 16:00:00；'明天下午三点二十的比赛'→from:20240604 15:20:00, to:20240604 16:20:00；'今天下午三点二十分十五秒的比赛'→from:20240603 15:20:15, to:20240603 16:20:15；3)用户输入具体日期且已给出日期范围(如'6月17日到6月20日的比赛')，直接按用户给出的起止日期填，from 取起始日 00:00:00、to 取结束日 23:59:59；4)用户输入具体日期但无范围，以该日期为起点，根据语义(之前/之后)往前或往后扩展30天：'之后'含基准日当天，from 取基准日 00:00:00、to 取基准日+30天 23:59:59(如'6月17日之后的比赛'→from:20240617 00:00:00, to:20240717 23:59:59)；'之前'不含基准日当天，to 取基准日前一日 23:59:59、from 取 to 再往前30天的 00:00:00。特殊时段固定范围(均为同一天内)：凌晨00:00:00~06:00:00、早上04:00:00~12:00:00、上午08:00:00~12:00:00、中午12:00:00~14:00:00、下午12:00:00~18:00:00、傍晚17:00:00~19:00:00、晚上18:00:00~次日00:00:00(晚上跨日，to 必须写成次日的 00:00:00，不可写 24:00:00)。未限定时段的整天查询用 00:00:00~23:59:59。",
+      "type": "object",
+      "properties": {
+       "field": {
+        "type": "string",
+        "description": "范围搜索维度字段名",
+        "oneOf": [
+         {
+          "const": "sport_time_range",
+          "description": "赛事时间区间(格式化取值，指一个时间范围)。检索比赛开始时间，精确到秒，yyyyMMdd HH:mm:ss 格式，from/to 形如 20240603 15:00:00 ~ 20240603 16:00:00。与 sport_time 不同——sport_time_range 用于时段(上午/下午/晚上)、具体时刻、跨天区间或多日区间；用户只说某一天(如'今天'、'明天'、'昨天'、'上周一'、'6月17日')时用 sport_time 而非本字段；二者并非互斥，可在同一次查询中并存，但二者并存只有 OR 一种关系(两个时段比赛的并集)，用 or 节点组合，禁止用 and"
+         }
+        ]
+       },
+       "from": {
+        "type": "string",
+        "pattern": "^[0-9]{8} [0-9]{2}:[0-9]{2}:[0-9]{2}$",
+        "description": "起始时间(含)，格式 yyyyMMdd HH:mm:ss，精确到秒，如 20260127 06:00:00。按整天或日期区间查询时，from 取起始日的 00:00:00。"
+       },
+       "to": {
+        "type": "string",
+        "pattern": "^[0-9]{8} [0-9]{2}:[0-9]{2}:[0-9]{2}$",
+        "description": "结束时间(含)，格式 yyyyMMdd HH:mm:ss，精确到秒，如 20260127 07:00:00。按整天或日期区间查询时，to 取结束日的 23:59:59；'晚上'时段跨日，to 取次日的 00:00:00，禁止写成 24:00:00(非法时刻)。to 不得早于 from。"
+       }
+      },
+      "required": [
+       "field",
+       "from",
+       "to"
+      ],
+      "additionalProperties": false
+     }
+    },
+    "error_output": {
+     "type": "object",
+     "properties": {
+      "error_code": {
+       "type": "string",
+       "description": "错误码。NO_RESULT=无匹配赛程；PARAM_INVALID=参数格式错误(如query结构不合法、value/values 同时出现、时间格式错)。"
+      },
+      "error_message": {
+       "type": "string",
+       "description": "错误描述"
+      }
+     }
+    },
+    "examples": [
+     {
+      "scenario": "正常：皇马的比赛(单维度)",
+      "input": {
+       "query": {
+        "field": "sport_team",
+        "value": "皇马"
+       }
+      }
+     },
+     {
+      "scenario": "正常：NBA的比赛(按赛事)",
+      "input": {
+       "query": {
+        "field": "sport_game",
+        "value": "NBA"
+       }
+      }
+     },
+     {
+      "scenario": "正常：今天的足球比赛(项目+日期 跨字段 AND)",
+      "input": {
+       "query": {
+        "and": [
+         {
+          "field": "sport_name",
+          "value": "足球"
+         },
+         {
+          "field": "sport_time",
+          "value": "20260811"
+         }
+        ]
+       }
+      }
+     },
+     {
+      "scenario": "正常：未开始的英超(赛事+状态 跨字段 AND)",
+      "input": {
+       "query": {
+        "and": [
+         {
+          "field": "sport_game",
+          "value": "英超"
+         },
+         {
+          "field": "live_state",
+          "value": "1"
+         }
+        ]
+       }
+      }
+     },
+     {
+      "scenario": "正常：中超下一轮(round_offset 作为 query 内叶子节点)",
+      "input": {
+       "query": {
+        "and": [
+         {
+          "field": "sport_game",
+          "value": "中超"
+         },
+         {
+          "field": "round_offset",
+          "value": "1"
+         }
+        ]
+       }
+      }
+     },
+     {
+      "scenario": "正常：皇马或巴萨的比赛(同字段 OR，values+operator)",
+      "input": {
+       "query": {
+        "field": "sport_team",
+        "values": [
+         "皇马",
+         "巴萨"
+        ],
+        "operator": "or"
+       }
+      }
+     },
+     {
+      "scenario": "正常：除皇马以外的西甲比赛(同字段 NOT，外层 not 节点)",
+      "input": {
+       "query": {
+        "and": [
+         {
+          "field": "sport_game",
+          "value": "西甲"
+         },
+         {
+          "not": {
+           "field": "sport_team",
+           "value": "皇马"
+          }
+         }
+        ]
+       }
+      }
+     },
+     {
+      "scenario": "正常：今天已结束或回看的比赛(状态 OR，values)",
+      "input": {
+       "query": {
+        "and": [
+         {
+          "field": "sport_time",
+          "value": "20260811"
+         },
+         {
+          "field": "live_state",
+          "values": [
+           "3",
+           "4"
+          ]
+         }
+        ]
+       }
+      }
+     },
+     {
+      "scenario": "正常：今天或下周的比赛(sport_time 与 sport_time_range 并存，OR 连接)",
+      "input": {
+       "query": {
+        "or": [
+         {
+          "field": "sport_time",
+          "value": "20260813"
+         },
+         {
+          "field": "sport_time_range",
+          "from": "20260817 00:00:00",
+          "to": "20260823 23:59:59"
+         }
+        ]
+       }
+      }
+     },
+     {
+      "scenario": "正常：今天或明天上午的比赛(sport_time 与 sport_time_range 并存，OR 连接)",
+      "input": {
+       "query": {
+        "or": [
+         {
+          "field": "sport_time",
+          "value": "20260813"
+         },
+         {
+          "field": "sport_time_range",
+          "from": "20260814 08:00:00",
+          "to": "20260814 12:00:00"
+         }
+        ]
+       }
+      }
+     },
+     {
+      "scenario": "正常：梅西上场 或 皇马的比赛(跨字段 OR)",
+      "input": {
+       "query": {
+        "or": [
+         {
+          "field": "sport_star",
+          "value": "梅西"
+         },
+         {
+          "field": "sport_team",
+          "value": "皇马"
+         }
+        ]
+       }
+      }
+     },
+     {
+      "scenario": "正常：排除皇马、巴萨的西甲比赛(同字段 NOT 多值，外层 not 节点)",
+      "input": {
+       "query": {
+        "and": [
+         {
+          "field": "sport_game",
+          "value": "西甲"
+         },
+         {
+          "not": {
+           "or": [
+            {
+             "field": "sport_team",
+             "value": "皇马"
+            },
+            {
+             "field": "sport_team",
+             "value": "巴萨"
+            }
+           ]
+          }
+         }
+        ]
+       }
+      }
+     },
+     {
+      "scenario": "异常：未命中赛程",
+      "input": {
+       "query": {
+        "field": "sport_team",
+        "value": "某不存在的球队"
+       }
+      },
+      "error_output": {
+       "error_code": "NO_RESULT",
+       "error_message": "无匹配赛程"
+      }
+     }
+    ]
+   }
+  },
+  {
+   "tool_name": "sports_vod_search",
+   "description": "体育视频组合式搜索工具(sports_vod_search)。用于查询【影视-体育分类媒资】，当用户表达了搜索、查找、推荐体育视频/录像/回放/集锦/纪录片等点播内容的意图时触发，包括按球队/俱乐部(sport_team，含主队sport_team_home/客队sport_team_guest)、运动员/球星(sport_star)、赛事名称(sport_game)、运动项目(sport_name)、比赛阶段(sport_competition_phase)、相对轮次(round_offset)、节目标题(title)、赛季(sport_season)、赛事日期(sport_time)等维度筛选，以及按赛事时间区间(sport_time_range)筛选的场景。支持11个精确匹配维度、1个范围维度(sport_time_range)。视频媒资本身均为已结束/可回看点播内容，状态固定无需也不应通过状态字段过滤。布尔组合能力：不同槽位之间支持 AND/OR/NOT 任意嵌套(query 节点的 and/or/not)；同一槽位多值用 operator 选 and/or(默认 or)；NOT 排除用外层 not 节点表达。工具边界：本工具找的是可点播的视频媒资(录像、回放、集锦、专题片)，且独有 title(节目/纪录片/专题片名)维度——这是与赛事搜索(sports_match_search，只查赛程对阵)最大的差异点；sports_match_search 找的是赛程(单场比赛跳转播放)；预约比赛用 sports_match_reservation。",
+   "parameters": {
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "name": "sports_vod_search",
+    "description": "体育视频组合式搜索工具(sports_vod_search)。用于查询【影视-体育分类媒资】，当用户表达了搜索、查找、推荐体育视频/录像/回放/集锦/纪录片等点播内容的意图时触发，包括按球队/俱乐部(sport_team，含主队sport_team_home/客队sport_team_guest)、运动员/球星(sport_star)、赛事名称(sport_game)、运动项目(sport_name)、比赛阶段(sport_competition_phase)、相对轮次(round_offset)、节目标题(title)、赛季(sport_season)、赛事日期(sport_time)等维度筛选，以及按赛事时间区间(sport_time_range)筛选的场景。支持11个精确匹配维度、1个范围维度(sport_time_range)。视频媒资本身均为已结束/可回看点播内容，状态固定无需也不应通过状态字段过滤。布尔组合能力：不同槽位之间支持 AND/OR/NOT 任意嵌套(query 节点的 and/or/not)；同一槽位多值用 operator 选 and/or(默认 or)；NOT 排除用外层 not 节点表达。工具边界：本工具找的是可点播的视频媒资(录像、回放、集锦、专题片)，且独有 title(节目/纪录片/专题片名)维度——这是与赛事搜索(sports_match_search，只查赛程对阵)最大的差异点；sports_match_search 找的是赛程(单场比赛跳转播放)；预约比赛用 sports_match_reservation。",
+    "type": "object",
+    "properties": {
+     "query": {
+      "$ref": "#/definitions/QueryNode",
+      "description": "搜索查询的根节点。可以是单个叶子条件，也可以是由 and/or/not 组成的复合布尔节点。"
+     }
+    },
+    "required": [
+     "query"
+    ],
+    "additionalProperties": false,
+    "definitions": {
+     "QueryNode": {
+      "description": "查询节点，支持四种形态：1) AND复合节点；2) OR复合节点；3) NOT取反节点；4) 叶子条件节点(单个字段的匹配条件)。",
+      "oneOf": [
+       {
+        "$ref": "#/definitions/AndNode"
+       },
+       {
+        "$ref": "#/definitions/OrNode"
+       },
+       {
+        "$ref": "#/definitions/NotNode"
+       },
+       {
+        "$ref": "#/definitions/LeafNode"
+       }
+      ]
+     },
+     "AndNode": {
+      "description": "AND逻辑组合节点。所有子节点条件必须同时满足。拼接规则：每个子节点条件用括号包裹，子节点之间用 AND 连接，例如：(sport_team:皇马) AND (sport_name:足球)。",
+      "type": "object",
+      "properties": {
+       "and": {
+        "type": "array",
+        "items": {
+         "$ref": "#/definitions/QueryNode"
+        },
+        "minItems": 1,
+        "description": "AND逻辑：所有子节点条件必须同时满足。拼接时每个子条件用()包裹，子条件间用AND连接。"
+       }
+      },
+      "required": [
+       "and"
+      ],
+      "additionalProperties": false
+     },
+     "OrNode": {
+      "description": "OR逻辑组合节点。任一子节点条件满足即命中。拼接规则：每个子节点条件用括号包裹，子节点之间用 OR 连接，例如：(sport_team:皇马) OR (sport_star:梅西)。用于'或者'、'要么...要么...'类任选其一的表达。注意：同一字段的多个候选值(如'皇马或巴萨')优先用叶子节点的 values+operator=or，不要拆成多个相同字段的 OR 节点。",
+      "type": "object",
+      "properties": {
+       "or": {
+        "type": "array",
+        "items": {
+         "$ref": "#/definitions/QueryNode"
+        },
+        "minItems": 1,
+        "description": "OR逻辑：任一子节点条件满足即命中。拼接时每个子条件用()包裹，子条件间用OR连接。"
+       }
+      },
+      "required": [
+       "or"
+      ],
+      "additionalProperties": false
+     },
+     "NotNode": {
+      "description": "NOT逻辑取反节点。对单个子条件取反。拼接规则：NOT (子条件)，如 NOT (sport_team:国足)。常用于'除了...以外'、'不要...'类表达。注意：not 只接受单个子节点(对象)，不是数组；要对多个条件同时取反，请用 not 包裹 and/or 复合节点(如 {not:{and:[...]}} 表示'不同时满足这些')。",
+      "type": "object",
+      "properties": {
+       "not": {
+        "$ref": "#/definitions/QueryNode"
+       }
+      },
+      "required": [
+       "not"
+      ],
+      "additionalProperties": false
+     },
+     "LeafNode": {
+      "description": "叶子条件节点，描述对某一搜索维度的具体匹配条件。可以是精确匹配(ExactFieldCondition)或范围匹配(RangeFieldCondition)。",
+      "type": "object",
+      "oneOf": [
+       {
+        "$ref": "#/definitions/ExactFieldCondition"
+       },
+       {
+        "$ref": "#/definitions/RangeFieldCondition"
+       }
+      ]
+     },
+     "ExactFieldCondition": {
+      "description": "精确匹配条件。支持两种互斥形态：1) 单值 value → (field:value)；2) 多值 values 配合 operator → operator=and 时 (field:值1) AND (field:值2)，operator=or 时 (field:值1) OR (field:值2)。value/values 二者只能出现其一。",
+      "type": "object",
+      "properties": {
+       "field": {
+        "type": "string",
+        "description": "搜索维度字段名（共11个精确匹配维度，其中 round_offset 为相对轮次偏移，格式化取值）。候选类型分三类：固定候选(取值有限可枚举，模型应在候选内取值或归一化)、半固定候选(常见取值有限但可扩展，候选值为典型示例而非全集)、开放型(取值不可枚举，按语义自由填入)。多个字段间存在语义边界，需按各 const 描述中的差异化说明选择正确字段。",
+        "oneOf": [
+         {
+          "const": "sport_team",
+          "description": "球队/俱乐部名称(开放型)。检索 team_name 字段，需100%匹配才召回，因此应填写球队规范名或用户原词，不要自行改写。与 sport_team_home/sport_team_guest 不同——sport_team 不区分主客场，是默认选择；只有用户明确说了'主场/客场'才改用对应变体。与 sport_star 不同——sport_team 是团体(俱乐部、国家队)，sport_star 是个人。典型取值：皇家马德里、皇马、曼联、湖人、中国男篮"
+         },
+         {
+          "const": "sport_team_home",
+          "description": "主队名称(开放型)。检索 team_name_home 字段，需100%匹配才召回；标签映射沿用 sportsTeam。仅当用户明确表达主场语义时使用(如'皇马主场的比赛'、'在曼联主场踢的')，否则一律用 sport_team"
+         },
+         {
+          "const": "sport_team_guest",
+          "description": "客队名称(开放型)。检索 team_name_guest 字段，需100%匹配才召回；标签映射沿用 sportsTeam。仅当用户明确表达客场语义时使用(如'皇马客场的比赛'、'做客巴萨')，否则一律用 sport_team"
+         },
+         {
+          "const": "sport_star",
+          "description": "运动员/球星姓名(开放型)。与 sport_team 不同——sport_star 是个人(梅西、詹姆斯、C罗)，球队名和国家队名(皇马、中国男篮)应归 sport_team。适用场景如'梅西的进球集锦'、'詹姆斯的比赛录像'"
+         },
+         {
+          "const": "sport_game",
+          "description": "赛事/联赛名称(半固定候选)。检索 competition_name 或 competition_alias_name，任一字段满足即召回，因此别名(如'欧冠'对应'欧洲冠军联赛')可直接填用户原词。与 sport_name 不同——sport_game 是具体赛事IP，sport_name 是运动项目大类；'足球比赛'用 sport_name，'欧冠比赛'用 sport_game。与 title 不同——sport_game 是赛事本身，title 是视频节目名。典型取值：世界杯、欧冠、欧联杯、英超、西甲、意甲、德甲、法甲、中超、亚冠、欧洲杯、亚洲杯、世俱杯、NBA、CBA、奥运会"
+         },
+         {
+          "const": "sport_name",
+          "description": "运动项目类型(半固定候选)。检索二级分类 child_category_name，其中一个字段满足条件即召回。与 sport_game 不同——sport_name 只描述'什么运动'，不含具体赛事信息；用户同时给出项目和赛事时两个字段可并存(如'足球欧冠')。典型取值：足球、篮球、网球、排球、乒乓球、羽毛球、田径、游泳、赛车、拳击、格斗、台球、高尔夫、冰雪、电竞(候选可扩展，按用户原词填入)"
+         },
+         {
+          "const": "sport_competition_phase",
+          "description": "比赛阶段(半固定候选)。检索 round_name 字段，需100%匹配才召回。与 round_offset 不同——sport_competition_phase 是赛程中的阶段名称(绝对概念)，round_offset 是相对当前的轮次偏移。典型取值：资格赛、小组赛、附加赛、淘汰赛、1/8决赛、四分之一决赛、半决赛、决赛、季后赛、总决赛、常规赛"
+         },
+         {
+          "const": "round_offset",
+          "description": "相对轮次偏移(格式化取值)。作为 query 内普通叶子节点使用。取值为相对当前轮次的整数偏移(字符串形态)：负数表示往前(如'上一轮'→\"-1\"、'上两轮'→\"-2\")，正数表示往后(如'下一轮'→\"1\"、'下两轮'→\"2\")。用 value 承载单值，如 {field:\"round_offset\", value:\"1\"}。与 sport_competition_phase 不同——round_offset 是相对当前的轮次偏移，'第3轮'这类绝对轮次名不属于本字段。不涉及时不传。"
+         },
+         {
+          "const": "title",
+          "description": "视频/节目标题(开放型)。体育影视媒资本身的名称，是本工具(sports_vod_search)独有的维度——赛事搜索(sports_match_search)只查赛程对阵、不含节目名维度，这也是两个工具最大的差异点。典型形态是'赛事名+栏目类型'组合而成的集锦/精华栏目名(如'西甲精华'、'英超精华'、'NBA十佳球')。与 sport_game 的关键边界：当用户找的是这类栏目/集锦视频(如'西甲精华')时，整个栏目名作为一个整体填 title，不要拆成 sport_game=西甲——title 检索的是媒资节目名本身。与 sport_star(球星名) 也不同——title 不是个人。优先级提示：只有当该词承载不下任何其他维度，或该词明显是一个栏目/集锦名时才用 title；纯粹的赛事名、球队名、球星名不要误填进 title。适用场景如'找西甲精华视频'、'NBA十佳球'"
+         },
+         {
+          "const": "sport_season",
+          "description": "赛季(半固定候选)。检索 season_name 字段，需100%匹配才召回。与 sport_time/sport_time_range 不同——sport_season 是赛季标识(跨年周期)，时间字段是具体日期或时刻区间；'2024-2025赛季的比赛'用 sport_season，'2024年7月15日的比赛'用 sport_time。典型取值：2020-2021赛季、20-21赛季、2024-2025赛季、本赛季、上赛季"
+         },
+         {
+          "const": "sport_time",
+          "description": "赛事日期(格式化取值，指具体某一天)。检索 start_time_day_format 字段，值必须为 yyyyMMdd 格式的单个日期(如20240715)。适用于用户只给出某一天的场景，无论绝对日期(如'6月17日的比赛')还是相对日期(如'今天'、'明天'、'昨天'、'上周一'、'下周五')都归本字段，需按当前日期归一化为 yyyyMMdd 绝对日期。与 sport_time_range 不同——sport_time 是单日匹配(只到天)，sport_time_range 是精确到秒的时刻区间(如'下午3点到5点'、'15:00:00~16:00:00')；二者并非互斥，可在同一次查询中并存，但二者并存只有 OR 一种关系(两个时段比赛的并集)，用 or 节点组合，禁止用 and。注意：当用户并列多个时间范围(如'今天和明天上午的比赛'、'今天或下周的比赛'，'和'/'或'均同义)时，语义都是两个时段比赛的并集，必须用 OR 组合：(sport_time:今天) OR (sport_time_range:明天上午)；不可用 AND(AND 表示同一场比赛要同时落在两个时间，不可能命中)。"
+         }
+        ]
+       },
+       "value": {
+        "type": "string",
+        "description": "单值精确匹配，拼接为 (field:value)。仅传一个候选值时使用；多个候选值请改用 values + operator。"
+       },
+       "values": {
+        "type": "array",
+        "items": {
+         "type": "string"
+        },
+        "minItems": 1,
+        "description": "多值匹配。列表中每个值之间按 operator 指定的逻辑连接；未传 operator 时默认 or。体育场景同字段多值以 OR 居多(如'皇马或巴萨'、'西甲或英超')。注意：表达'或'语义时用 values+operator=or，不要把候选值用逗号拼在单个 value 里。"
+       },
+       "operator": {
+        "type": "string",
+        "enum": [
+         "and",
+         "or"
+        ],
+        "description": "values 多值间的逻辑连接。and=所有值需同时满足(体育场景极少，一场比赛几乎不可能同时属于两支球队/两个赛事，仅'某球队同时打联赛+杯赛'等少数场景可用)；or=任一值满足即命中(常见)。仅对 values 有效；使用 value 单值时不应传本字段。未传时默认 or。"
+       }
+      },
+      "required": [
+       "field"
+      ],
+      "oneOf": [
+       {
+        "required": [
+         "value"
+        ]
+       },
+       {
+        "required": [
+         "values"
+        ]
+       }
+      ],
+      "additionalProperties": false
+     },
+     "RangeFieldCondition": {
+      "description": "范围匹配条件。支持 sport_time_range(赛事时间区间) 范围字段，from/to 均为 yyyyMMdd HH:mm:ss 格式日期时间字符串，精确到秒，后续由系统转换为10位UTC秒级时间戳区间进行查询(最终形态如 [1716534389 TO 1717052789])。搜索'比赛开始时间'处于 from(含) 和 to(含) 之间的赛程，from 和 to 可以一致。多个时间区间需要 OR/AND 组合时(如'今天下午或明天上午的比赛')，用外层 and/or 节点包裹多个 RangeFieldCondition(每个含一个 sport_time_range)，本条件内部不再支持多值。时间范围生成规则(共四类场景，先判断用户是否已给出明确范围，已给出则不做任何扩展)：1)用户输入具体时间且已给出时间范围(如'今天下午3点到5点的比赛')，直接按用户给出的起止时间填 from/to；2)用户输入具体时间但无范围，以该时间点为起点，根据语义(之前/之后)往前或往后扩展1小时作为另一端，扩展时保留原有的分和秒，例如'今天下午三点的比赛'→from:20240603 15:00:00, to:20240603 16:00:00；'明天下午三点二十的比赛'→from:20240604 15:20:00, to:20240604 16:20:00；'今天下午三点二十分十五秒的比赛'→from:20240603 15:20:15, to:20240603 16:20:15；3)用户输入具体日期且已给出日期范围(如'6月17日到6月20日的比赛')，直接按用户给出的起止日期填，from 取起始日 00:00:00、to 取结束日 23:59:59；4)用户输入具体日期但无范围，以该日期为起点，根据语义(之前/之后)往前或往后扩展30天：'之后'含基准日当天，from 取基准日 00:00:00、to 取基准日+30天 23:59:59(如'6月17日之后的比赛'→from:20240617 00:00:00, to:20240717 23:59:59)；'之前'不含基准日当天，to 取基准日前一日 23:59:59、from 取 to 再往前30天的 00:00:00。特殊时段固定范围(均为同一天内)：凌晨00:00:00~06:00:00、早上04:00:00~12:00:00、上午08:00:00~12:00:00、中午12:00:00~14:00:00、下午12:00:00~18:00:00、傍晚17:00:00~19:00:00、晚上18:00:00~次日00:00:00(晚上跨日，to 必须写成次日的 00:00:00，不可写 24:00:00)。未限定时段的整天查询用 00:00:00~23:59:59。",
+      "type": "object",
+      "properties": {
+       "field": {
+        "type": "string",
+        "description": "范围搜索维度字段名",
+        "oneOf": [
+         {
+          "const": "sport_time_range",
+          "description": "赛事时间区间(格式化取值，指一个时间范围)。检索比赛开始时间，精确到秒，yyyyMMdd HH:mm:ss 格式，from/to 形如 20240603 15:00:00 ~ 20240603 16:00:00。与 sport_time 不同——sport_time_range 用于时段(上午/下午/晚上)、具体时刻、跨天区间或多日区间；用户只说某一天(如'今天'、'明天'、'昨天'、'上周一'、'6月17日')时用 sport_time 而非本字段；二者并非互斥，可在同一次查询中并存，但二者并存只有 OR 一种关系(两个时段比赛的并集)，用 or 节点组合，禁止用 and"
+         }
+        ]
+       },
+       "from": {
+        "type": "string",
+        "pattern": "^[0-9]{8} [0-9]{2}:[0-9]{2}:[0-9]{2}$",
+        "description": "起始时间(含)，格式 yyyyMMdd HH:mm:ss，精确到秒，如 20260127 06:00:00。按整天或日期区间查询时，from 取起始日的 00:00:00。"
+       },
+       "to": {
+        "type": "string",
+        "pattern": "^[0-9]{8} [0-9]{2}:[0-9]{2}:[0-9]{2}$",
+        "description": "结束时间(含)，格式 yyyyMMdd HH:mm:ss，精确到秒，如 20260127 07:00:00。按整天或日期区间查询时，to 取结束日的 23:59:59；'晚上'时段跨日，to 取次日的 00:00:00，禁止写成 24:00:00(非法时刻)。to 不得早于 from。"
+       }
+      },
+      "required": [
+       "field",
+       "from",
+       "to"
+      ],
+      "additionalProperties": false
+     }
+    },
+    "error_output": {
+     "type": "object",
+     "properties": {
+      "error_code": {
+       "type": "string",
+       "description": "错误码。NO_RESULT=无匹配视频媒资；PARAM_INVALID=参数格式错误(如query结构不合法、value/values 同时出现、时间格式错)。"
+      },
+      "error_message": {
+       "type": "string",
+       "description": "错误描述"
+      }
+     }
+    },
+    "examples": [
+     {
+      "scenario": "正常：找皇马的比赛录像(单维度)",
+      "input": {
+       "query": {
+        "field": "sport_team",
+        "value": "皇马"
+       }
+      }
+     },
+     {
+      "scenario": "正常：找梅西的进球集锦",
+      "input": {
+       "query": {
+        "field": "sport_star",
+        "value": "梅西"
+       }
+      }
+     },
+     {
+      "scenario": "正常：找西甲精华视频(title 维度)",
+      "input": {
+       "query": {
+        "field": "title",
+        "value": "西甲精华"
+       }
+      }
+     },
+     {
+      "scenario": "正常：播放NBA十佳球的视频(title 维度)",
+      "input": {
+       "query": {
+        "and": [
+         {
+          "field": "title",
+          "value": "NBA十佳球"
+         }
+        ]
+       }
+      }
+     },
+     {
+      "scenario": "正常：皇马或巴萨的录像(同字段 OR，values+operator)",
+      "input": {
+       "query": {
+        "field": "sport_team",
+        "values": [
+         "皇马",
+         "巴萨"
+        ],
+        "operator": "or"
+       }
+      }
+     },
+     {
+      "scenario": "正常：除国足以外的足球集锦(同字段 NOT，外层 not 节点)",
+      "input": {
+       "query": {
+        "and": [
+         {
+          "field": "sport_name",
+          "value": "足球"
+         },
+         {
+          "not": {
+           "field": "sport_team",
+           "value": "国足"
+          }
+         }
+        ]
+       }
+      }
+     },
+     {
+      "scenario": "正常：梅西的集锦 或 皇马的录像(跨字段 OR)",
+      "input": {
+       "query": {
+        "or": [
+         {
+          "field": "sport_star",
+          "value": "梅西"
+         },
+         {
+          "field": "sport_team",
+          "value": "皇马"
+         }
+        ]
+       }
+      }
+     },
+     {
+      "scenario": "我想看欧冠合集视频",
+      "input": {
+       "query": {
+        "field": "sport_game",
+        "value": "欧冠"
+       }
+      }
+     },
+     {
+      "scenario": "我想看奥运纪录片",
+      "input": {
+       "query": {
+        "field": "sport_game",
+        "value": "奥运"
+       }
+      }
+     },
+     {
+      "scenario": "异常：未命中视频媒资",
+      "input": {
+       "query": {
+        "field": "sport_team",
+        "value": "某不存在的球队"
+       }
+      },
+      "error_output": {
+       "error_code": "NO_RESULT",
+       "error_message": "无匹配视频媒资"
+      }
+     }
+    ]
+   }
+  },
+  {
+   "tool_name": "sports_rank_search",
+   "description": "体育榜单查询工具(sports_rank_search)。用于查询体育排行榜/积分榜/球员数据榜等排名数据，命中后直接出榜单卡片，不做自然语言重述。适用前提：用户表述能锁定'赛事 + 榜单类型'且限定当前赛季。不适用场景(不调用本工具，由编排层走默认回复)：跨赛季/历史排名、预测或比较类问题、不限定赛事的泛化排名。典型说法：'中超积分榜'、'英超射手榜'、'NBA得分榜'、'NBA排行榜'。工具边界：本工具只处理榜单/排名类需求；要查赛程/对阵用 sports_match_search；要查球队本体资料用 sports_team_search。",
+   "parameters": {
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "name": "sports_rank_search",
+    "description": "体育榜单查询工具(sports_rank_search)。用于查询体育排行榜/积分榜/球员数据榜等排名数据，命中后直接出榜单卡片，不做自然语言重述。适用前提：用户表述能锁定'赛事 + 榜单类型'且限定当前赛季。不适用场景(不调用本工具，由编排层走默认回复)：跨赛季/历史排名、预测或比较类问题、不限定赛事的泛化排名。典型说法：'中超积分榜'、'英超射手榜'、'NBA得分榜'、'NBA排行榜'。工具边界：本工具只处理榜单/排名类需求；要查赛程/对阵用 sports_match_search；要查球队本体资料用 sports_team_search。",
+    "type": "object",
+    "properties": {
+     "sport_game": {
+      "type": "string",
+      "minLength": 1,
+      "description": "赛事/联赛名称(半固定候选，核心必填维度)。检索对应赛事的榜单数据，按赛事规范名或用户原词填写即可(后端会按 competition_name / competition_alias_name 归一)。适用场景如'中超积分榜'、'英超射手榜'、'NBA排行榜'。典型取值：中超、英超、西甲、意甲、德甲、法甲、欧冠、亚冠、欧洲杯、亚洲杯、世俱杯、世界杯、NBA、CBA(候选可扩展，按用户原词填入)。",
+      "examples": [
+       "中超",
+       "英超",
+       "西甲",
+       "NBA",
+       "CBA"
+      ]
+     },
+     "sport_rank_type": {
+      "type": "string",
+      "description": "榜单类型(固定候选，核心必填维度，决定所出卡片的形态与后端 type 码)。按用户问的是'球队积分/综合排名'还是'球员个人数据排名'及具体数据项来选择；仅这 8 个候选值，用户说法必须归一化到对应候选，不要自创新值。助攻榜不区分球类，具体 type 码由后续步骤按 sport_game 映射。",
+      "oneOf": [
+       {
+        "const": "积分榜",
+        "description": "球队积分排名(通用，后端 sceneMode=sportsPointRank/type=teamrank)。展示各球队按积分/胜平负/净胜球等排序的榜单，足球篮球联赛均适用。归一规则：用户说'积分榜/排行榜/排名/榜单/积分/名次'且语境是联赛积分时归本类。与 球队榜 不同——积分榜特指基于比赛积分的排名。"
+       },
+       {
+        "const": "球队榜",
+        "description": "球队综合排名(通用，后端 sceneMode=sportsPointRank/type=teamrank，与积分榜映射相同)。适用于有独立球队综合排名体系的项目(如 NBA 球队实力榜、电竞战队榜)。归一规则：用户明确说'球队榜/战队榜/球队实力榜'时归本类；常规联赛积分排名优先归'积分榜'。"
+       },
+       {
+        "const": "射手榜",
+        "description": "足球球员进球数据排名(后端 type=1)。展示足球赛事球员按进球数排序的榜单。归一规则：用户说'球员榜/射手榜/进球榜/进球数/进球数据/进球纪录'且语境是足球赛事时归本类。与 得分榜 不同——射手榜专指足球，得分榜专指篮球。"
+       },
+       {
+        "const": "助攻榜",
+        "description": "球员助攻数据排名(足球后端 type=2、篮球 type=4，由后续步骤按 sport_game 球类映射)。归一规则：用户说'助攻榜/助攻数/助攻数量/助攻记录'时归本类，不区分足球篮球。"
+       },
+       {
+        "const": "得分榜",
+        "description": "篮球球员得分数据排名(后端 type=3)。展示篮球赛事球员按得分排序的榜单。归一规则：用户说'得分榜/得分王'且语境是篮球赛事时归本类。与 射手榜 不同——得分榜专指篮球，射手榜专指足球。"
+       },
+       {
+        "const": "篮板榜",
+        "description": "篮球球员篮板数据排名(后端 type=5)。仅篮球赛事适用。"
+       },
+       {
+        "const": "盖帽榜",
+        "description": "篮球球员盖帽数据排名(后端 type=6)。仅篮球赛事适用。"
+       },
+       {
+        "const": "抢断榜",
+        "description": "篮球球员抢断数据排名(后端 type=7)。仅篮球赛事适用。"
+       }
+      ]
+     }
+    },
+    "required": [
+     "sport_game",
+     "sport_rank_type"
+    ],
+    "additionalProperties": false,
+    "error_output": {
+     "type": "object",
+     "properties": {
+      "error_code": {
+       "type": "string",
+       "description": "错误码。RANK_NOT_FOUND=赛事无榜单数据；RANK_TYPE_UNSUPPORTED=该赛事不支持此榜单类型；PARAM_INVALID=参数格式错误(如缺必选维度 sport_game/sport_rank_type)。"
+      },
+      "error_message": {
+       "type": "string",
+       "description": "错误描述"
+      }
+     }
+    },
+    "examples": [
+     {
+      "scenario": "正常：中超积分榜",
+      "input": {
+       "sport_game": "中超",
+       "sport_rank_type": "积分榜"
+      }
+     },
+     {
+      "scenario": "正常：NBA球队榜",
+      "input": {
+       "sport_game": "NBA",
+       "sport_rank_type": "球队榜"
+      }
+     },
+     {
+      "scenario": "正常：英超射手榜(足球球员进球)",
+      "input": {
+       "sport_game": "英超",
+       "sport_rank_type": "射手榜"
+      }
+     },
+     {
+      "scenario": "正常：NBA得分榜(篮球球员得分)",
+      "input": {
+       "sport_game": "NBA",
+       "sport_rank_type": "得分榜"
+      }
+     },
+     {
+      "scenario": "正常：西甲的助攻榜(足球，type 由后续映射)",
+      "input": {
+       "sport_game": "西甲",
+       "sport_rank_type": "助攻榜"
+      }
+     },
+     {
+      "scenario": "正常：NBA的助攻榜(篮球，type 由后续映射)",
+      "input": {
+       "sport_game": "NBA",
+       "sport_rank_type": "助攻榜"
+      }
+     },
+     {
+      "scenario": "正常：NBA篮板榜",
+      "input": {
+       "sport_game": "NBA",
+       "sport_rank_type": "篮板榜"
+      }
+     },
+     {
+      "scenario": "异常：赛事无榜单数据",
+      "input": {
+       "sport_game": "某不存在的赛事",
+       "sport_rank_type": "积分榜"
+      },
+      "error_output": {
+       "error_code": "RANK_NOT_FOUND",
+       "error_message": "该赛事无榜单数据"
+      }
+     }
+    ]
+   }
+  },
+  {
+   "tool_name": "sports_team_search",
+   "description": "球队信息查询工具(sports_team_search)。根据球队名(sport_team)查询球队资料，返回球队卡片及关联的赛程/资讯数据。当用户表达查看某支球队本体信息、资料、主页的意图时触发，典型说法如'皇马'、'皇家马德里'、'查一下湖人'、'我想看国足'。仅含1个开放型精确匹配维度(sport_team)，检索 team_name 字段，需100%匹配才召回，因此应填写球队规范名或用户原词，不要自行改写。工具边界：本工具只查球队本体信息(球队卡片+相关赛程/资讯)；要按球队、赛事、时间等多维度检索对阵赛程用 sports_match_search；要找录像/回放/集锦等点播视频用 sports_vod_search。",
+   "parameters": {
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "name": "sports_team_search",
+    "description": "球队信息查询工具(sports_team_search)。根据球队名(sport_team)查询球队资料，返回球队卡片及关联的赛程/资讯数据。当用户表达查看某支球队本体信息、资料、主页的意图时触发，典型说法如'皇马'、'皇家马德里'、'查一下湖人'、'我想看国足'。仅含1个开放型精确匹配维度(sport_team)，检索 team_name 字段，需100%匹配才召回，因此应填写球队规范名或用户原词，不要自行改写。工具边界：本工具只查球队本体信息(球队卡片+相关赛程/资讯)；要按球队、赛事、时间等多维度检索对阵赛程用 sports_match_search；要找录像/回放/集锦等点播视频用 sports_vod_search。",
+    "type": "object",
+    "properties": {
+     "sport_team": {
+      "type": "string",
+      "minLength": 1,
+      "description": "球队/俱乐部/国家队名称(开放型，本工具唯一搜索维度)。检索 team_name 字段，需100%匹配才召回，因此应填写球队规范名或用户原词，不要自行改写、扩写或翻译。与 sport_star 不同——本字段是团体(俱乐部、国家队，如皇马、中国男篮)，sport_star 是个人(梅西、詹姆斯)；用户说的是球员名时不要填到本字段。与 sport_game 不同——本字段是队伍本身，sport_game 是赛事/联赛IP(世界杯、英超、NBA)；'NBA'、'中超'、'世界杯'不属于球队。与 sport_name 不同——本字段是具体队伍，sport_name 是运动项目大类(足球、篮球)；'足球'、'篮球'不属于球队。归一规则：球队常见有全称与简称(皇家马德里/皇马、曼联/曼彻斯特联)，用户怎么说就怎么填，均由后端 team_name 做匹配，模型不做名称改写或长短形态切换。适用场景：用户单纯点名某支球队(如'皇马'、'查一下拜仁')；若用户带'比赛/赛程/对阵'语义(如'皇马的比赛')，应改用 sports_match_search。正例：皇家马德里、皇马、曼联、拜仁慕尼黑、湖人、中国男篮、国足；反例：梅西/C罗(→球员名，不填本字段)、NBA/英超(→赛事，用sport_game)、足球/篮球(→运动项目，用sport_name)、皇马的比赛(→赛程，用sports_match_search)。",
+      "examples": [
+       "皇马",
+       "皇家马德里",
+       "曼联",
+       "湖人",
+       "中国男篮"
+      ]
+     }
+    },
+    "required": [
+     "sport_team"
+    ],
+    "additionalProperties": false,
+    "error_output": {
+     "type": "object",
+     "properties": {
+      "error_code": {
+       "type": "string",
+       "description": "错误码。TEAM_NOT_FOUND=未找到该球队；PARAM_INVALID=参数格式错误(如sport_team为空)。"
+      },
+      "error_message": {
+       "type": "string",
+       "description": "错误描述"
+      }
+     }
+    },
+    "examples": [
+     {
+      "scenario": "正常：查皇马资料",
+      "input": {
+       "sport_team": "皇马"
+      }
+     },
+     {
+      "scenario": "正常：查中国男篮(用俗称)",
+      "input": {
+       "sport_team": "中国男篮"
+      }
+     },
+     {
+      "scenario": "异常：未命中球队",
+      "input": {
+       "sport_team": "某不存在的队"
+      },
+      "error_output": {
+       "error_code": "TEAM_NOT_FOUND",
+       "error_message": "未找到该球队"
+      }
+     }
+    ]
+   }
+  },
+  {
+   "tool_name": "sports_match_reservation",
+   "description": "功能：预约体育赛事中的单场比赛或批量预约多场比赛(订阅开赛提醒/预约观看)。\n适用场景：用户表达预约/订阅/提醒某场比赛时，如'预约皇马的比赛''订阅明天的中超''提醒我詹姆斯的比赛开始''皇马和巴萨的比赛都帮我预约'，按球队/球星/赛事/项目/阶段/相对轮次/赛季/日期等维度(详见各 const)定位比赛，以及按时间区间(sport_time_range)筛选。\n多场预约：支持命中多场比赛时全部预约，不要求唯一收敛。\n动作边界：只执行预约。\n状态默认：预约天然仅针对未开始(live_state=1)的比赛，该状态由系统固定锁定，本工具不提供也不接受状态字段，无需/不应在 query 中传状态条件。\n关联工具：仅查赛程用 sports_match_search；找录像/回放用 sports_vod_search。\n逻辑：维度间支持 AND/OR/NOT 任意嵌套；同一维度多值用 operator 选 and/or；NOT 排除用外层 not 节点表达。",
+   "parameters": {
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "name": "sports_match_reservation",
+    "description": "功能：预约体育赛事中的单场比赛或批量预约多场比赛(订阅开赛提醒/预约观看)。\n适用场景：用户表达预约/订阅/提醒某场比赛时，如'预约皇马的比赛''订阅明天的中超''提醒我詹姆斯的比赛开始''皇马和巴萨的比赛都帮我预约'，按球队/球星/赛事/项目/阶段/相对轮次/赛季/日期等维度(详见各 const)定位比赛，以及按时间区间(sport_time_range)筛选。\n多场预约：支持命中多场比赛时全部预约，不要求唯一收敛。\n动作边界：只执行预约。\n状态默认：预约天然仅针对未开始(live_state=1)的比赛，该状态由系统固定锁定，本工具不提供也不接受状态字段，无需/不应在 query 中传状态条件。\n关联工具：仅查赛程用 sports_match_search；找录像/回放用 sports_vod_search。\n逻辑：维度间支持 AND/OR/NOT 任意嵌套；同一维度多值用 operator 选 and/or；NOT 排除用外层 not 节点表达。",
+    "type": "object",
+    "properties": {
+     "query": {
+      "$ref": "#/definitions/QueryNode",
+      "description": "预约定位查询的根节点，用于定位要预约的比赛。可以是单个叶子条件，也可以是由 and/or/not 组成的复合布尔节点。"
+     }
+    },
+    "required": [
+     "query"
+    ],
+    "additionalProperties": false,
+    "definitions": {
+     "QueryNode": {
+      "description": "预约定位查询节点，用于定位要预约的比赛，支持四种形态：1) AND复合节点；2) OR复合节点；3) NOT取反节点；4) 叶子条件节点(单个字段的匹配条件)。",
+      "oneOf": [
+       {
+        "$ref": "#/definitions/AndNode"
+       },
+       {
+        "$ref": "#/definitions/OrNode"
+       },
+       {
+        "$ref": "#/definitions/NotNode"
+       },
+       {
+        "$ref": "#/definitions/LeafNode"
+       }
+      ]
+     },
+     "AndNode": {
+      "description": "AND逻辑组合节点。所有子节点条件必须同时满足。拼接规则：每个子节点条件用括号包裹，子节点之间用AND连接，例如：(sport_team:皇马) AND (sport_name:足球)。",
+      "type": "object",
+      "properties": {
+       "and": {
+        "type": "array",
+        "items": {
+         "$ref": "#/definitions/QueryNode"
+        },
+        "minItems": 1,
+        "description": "AND逻辑：所有子节点条件必须同时满足。拼接时每个子条件用()包裹，子条件间用AND连接。"
+       }
+      },
+      "required": [
+       "and"
+      ],
+      "additionalProperties": false
+     },
+     "OrNode": {
+      "description": "OR逻辑组合节点。任一子节点条件满足即命中。拼接规则：每个子节点条件用括号包裹，子节点之间用 OR 连接，例如：(sport_team:皇马) OR (sport_star:梅西)。用于'或者'、'要么...要么...'类任选其一的表达。注意：同一字段的多个候选值(如'皇马或巴萨')优先用叶子节点的 values+operator=or，不要拆成多个相同字段的 OR 节点。",
+      "type": "object",
+      "properties": {
+       "or": {
+        "type": "array",
+        "items": {
+         "$ref": "#/definitions/QueryNode"
+        },
+        "minItems": 1,
+        "description": "OR逻辑：任一子节点条件满足即命中。拼接时每个子条件用()包裹，子条件间用OR连接。"
+       }
+      },
+      "required": [
+       "or"
+      ],
+      "additionalProperties": false
+     },
+     "NotNode": {
+      "description": "NOT逻辑取反节点。对单个子条件取反。拼接规则：NOT (子条件)，如 NOT (sport_team:国足)。常用于'除了...以外'、'不要...'类表达。注意：not 只接受单个子节点(对象)，不是数组；要对多个条件同时取反，请用 not 包裹 and/or 复合节点(如 {not:{and:[...]}} 表示'不同时满足这些')。",
+      "type": "object",
+      "properties": {
+       "not": {
+        "$ref": "#/definitions/QueryNode"
+       }
+      },
+      "required": [
+       "not"
+      ],
+      "additionalProperties": false
+     },
+     "LeafNode": {
+      "description": "叶子条件节点，描述对某一预约定位维度的具体匹配条件。可以是精确匹配或范围匹配。",
+      "type": "object",
+      "oneOf": [
+       {
+        "$ref": "#/definitions/ExactFieldCondition"
+       },
+       {
+        "$ref": "#/definitions/RangeFieldCondition"
+       }
+      ]
+     },
+     "ExactFieldCondition": {
+      "description": "精确匹配条件。支持两种互斥形态：1) 单值 value → (field:value)；2) 多值 values 配合 operator → operator=and 时 (field:值1) AND (field:值2)，operator=or 时 (field:值1) OR (field:值2)。value/values 二者只能出现其一。",
+      "type": "object",
+      "properties": {
+       "field": {
+        "type": "string",
+        "description": "预约定位维度字段名（共10个精确匹配维度，其中 round_offset 为相对轮次偏移，格式化取值）。候选类型分三类：固定候选(取值有限可枚举，模型应在候选内取值或归一化)、半固定候选(常见取值有限但可扩展，候选值为典型示例而非全集)、开放型(取值不可枚举，按语义自由填入)。多个字段间存在语义边界，需按各 const 描述中的差异化说明选择正确字段。",
+        "oneOf": [
+         {
+          "const": "sport_team",
+          "description": "球队/俱乐部名称(开放型)。检索 team_name 字段，需100%匹配才召回，因此应填写球队规范名或用户原词，不要自行改写。与 sport_team_home/sport_team_guest 不同——sport_team 不区分主客场，是默认选择；只有用户明确说了'主场/客场'才改用对应变体。与 sport_star 不同——sport_team 是团体(俱乐部、国家队)，sport_star 是个人。适用场景如'预约皇马的比赛'。典型取值：皇家马德里、皇马、曼联、湖人、中国男篮"
+         },
+         {
+          "const": "sport_team_home",
+          "description": "主队名称(开放型)。检索 team_name_home 字段，需100%匹配才召回；标签映射沿用 sportsTeam。仅当用户明确表达主场语义时使用(如'预约皇马主场的比赛'、'在曼联主场踢的那场要预约')，否则一律用 sport_team"
+         },
+         {
+          "const": "sport_team_guest",
+          "description": "客队名称(开放型)。检索 team_name_guest 字段，需100%匹配才召回；标签映射沿用 sportsTeam。仅当用户明确表达客场语义时使用(如'预约皇马客场的比赛'、'做客巴萨那场')，否则一律用 sport_team"
+         },
+         {
+          "const": "sport_star",
+          "description": "运动员/球星姓名(开放型)。检索 player_name 或 title 字段，任一100%匹配即召回。与 sport_team 不同——sport_star 是个人(梅西、詹姆斯、C罗)，球队名和国家队名(皇马、中国男篮)应归 sport_team。适用场景如'预约梅西的比赛'、'有詹姆斯的比赛都帮我预约'"
+         },
+         {
+          "const": "sport_game",
+          "description": "赛事/联赛名称(半固定候选)。检索 competition_name 或 competition_alias_name，任一字段满足即召回，因此别名(如'欧冠'对应'欧洲冠军联赛')可直接填用户原词。与 sport_name 不同——sport_game 是具体赛事IP，sport_name 是运动项目大类；'足球比赛'用 sport_name，'欧冠比赛'用 sport_game。适用场景如'预约NBA的比赛'、'订阅中超'。典型取值：世界杯、欧冠、欧联杯、英超、西甲、意甲、德甲、法甲、中超、亚冠、欧洲杯、亚洲杯、世俱杯、NBA、CBA、奥运会"
+         },
+         {
+          "const": "sport_name",
+          "description": "运动项目类型(半固定候选)。检索二级分类 child_category_name，其中一个字段满足条件即召回。与 sport_game 不同——sport_name 只描述'什么运动'，不含具体赛事信息；用户同时给出项目和赛事时两个字段可并存(如'足球欧冠')。典型取值：足球、篮球、网球、排球、乒乓球、羽毛球、田径、游泳、赛车、拳击、格斗、台球、高尔夫、冰雪、电竞(候选可扩展，按用户原词填入)"
+         },
+         {
+          "const": "sport_competition_phase",
+          "description": "比赛阶段(半固定候选)。检索 round_name 字段，需100%匹配才召回。与 round_offset 不同——sport_competition_phase 是赛程中的阶段名称(绝对概念)，round_offset 是相对当前的轮次偏移。典型取值：资格赛、小组赛、附加赛、淘汰赛、1/8决赛、四分之一决赛、半决赛、决赛、季后赛、总决赛、常规赛"
+         },
+         {
+          "const": "round_offset",
+          "description": "相对轮次偏移(格式化取值)。作为 query 内普通叶子节点使用。取值为相对当前轮次的整数偏移(字符串形态)：负数表示往前(如'上一轮'→\"-1\"、'上两轮'→\"-2\")，正数表示往后(如'下一轮'→\"1\"、'下两轮'→\"2\")。用 value 承载单值，如 {field:\"round_offset\", value:\"1\"}。与 sport_competition_phase 不同——round_offset 是相对当前的轮次偏移，'第3轮'这类绝对轮次名不属于本字段。不涉及时不传。"
+         },
+         {
+          "const": "sport_season",
+          "description": "赛季(半固定候选)。检索 season_name 字段，需100%匹配才召回。与 sport_time/sport_time_range 不同——sport_season 是赛季标识(跨年周期)，时间字段是具体日期或时刻区间；'预约2024-2025赛季的比赛'用 sport_season，'预约2024年7月15日的比赛'用 sport_time。典型取值：2020-2021赛季、20-21赛季、2024-2025赛季、本赛季、上赛季"
+         },
+         {
+          "const": "sport_time",
+          "description": "赛事日期(格式化取值，指具体某一天)。检索 start_time_day_format 字段，值必须为 yyyyMMdd 格式的单个日期(如20240715)。适用于用户只给出某一天的场景，无论绝对日期(如'预约6月17日的比赛')还是相对日期(如'预约今天'、'预约明天'、'预约昨天'、'预约上周一'、'预约下周五')都归本字段，需按当前日期归一化为 yyyyMMdd 绝对日期。与 sport_time_range 不同——sport_time 是单日匹配(只到天)，sport_time_range 是精确到秒的时刻区间(如'下午3点到5点'、'15:00:00~16:00:00')；二者并非互斥，可在同一次查询中并存，但二者并存只有 OR 一种关系(两个时段比赛的并集)，用 or 节点组合，禁止用 and。注意：当用户并列多个时间范围(如'预约今天和明天上午的比赛'、'预约今天或下周的比赛'，'和'/'或'均同义)时，语义都是两个时段比赛的并集，必须用 OR 组合：(sport_time:今天) OR (sport_time_range:明天上午)；不可用 AND(AND 表示同一场比赛要同时落在两个时间，不可能命中)。"
+         }
+        ]
+       },
+       "value": {
+        "type": "string",
+        "description": "单值精确匹配，拼接为(field:value)。"
+       },
+       "values": {
+        "type": "array",
+        "items": {
+         "type": "string"
+        },
+        "minItems": 1,
+        "description": "多值匹配。列表中每个值之间按 operator 指定的逻辑连接；未传 operator 时默认 or。体育场景同字段多值以 OR 居多(如'皇马或巴萨'、'西甲或英超')。注意：表达'或'语义时用 values+operator=or，不要把候选值用逗号拼在单个 value 里。"
+       },
+       "operator": {
+        "type": "string",
+        "enum": [
+         "and",
+         "or"
+        ],
+        "description": "values 多值间的逻辑连接。and=所有值需同时满足(体育场景极少，一场比赛几乎不可能同时属于两支球队/两个赛事，仅'某球队同时打联赛+杯赛'等少数场景可用)；or=任一值满足即命中(常见)。仅对 values 有效；使用 value 单值时不应传本字段。未传时默认 or。"
+       }
+      },
+      "required": [
+       "field"
+      ],
+      "oneOf": [
+       {
+        "required": [
+         "value"
+        ]
+       },
+       {
+        "required": [
+         "values"
+        ]
+       }
+      ],
+      "additionalProperties": false
+     },
+     "RangeFieldCondition": {
+      "description": "范围匹配条件。支持 sport_time_range(赛事时间区间) 范围字段，from/to 均为 yyyyMMdd HH:mm:ss 格式日期时间字符串，精确到秒，后续由系统转换为10位UTC秒级时间戳区间进行查询(最终形态如 [1716534389 TO 1717052789])。预约'比赛开始时间'处于 from(含) 和 to(含) 之间的赛程，from 和 to 可以一致。时间范围生成规则(共四类场景，先判断用户是否已给出明确范围，已给出则不做任何扩展)：1)用户输入具体时间且已给出时间范围(如'预约今天下午3点到5点的比赛')，直接按用户给出的起止时间填 from/to；2)用户输入具体时间但无范围，以该时间点为起点，根据语义(之前/之后)往前或往后扩展1小时作为另一端，扩展时保留原有的分和秒，例如'预约今天下午三点的比赛'→from:20240603 15:00:00, to:20240603 16:00:00；'预约明天下午三点二十的比赛'→from:20240604 15:20:00, to:20240604 16:20:00；'预约今天下午三点二十分十五秒的比赛'→from:20240603 15:20:15, to:20240603 16:20:15；3)用户输入具体日期且已给出日期范围(如'预约6月17日到6月20日的比赛')，直接按用户给出的起止日期填，from 取起始日 00:00:00、to 取结束日 23:59:59；4)用户输入具体日期但无范围，以该日期为起点，根据语义(之前/之后)往前或往后扩展30天：'之后'含基准日当天，from 取基准日 00:00:00、to 取基准日+30天 23:59:59(如'预约6月17日之后的比赛'→from:20240617 00:00:00, to:20240717 23:59:59)；'之前'不含基准日当天，to 取基准日前一日 23:59:59、from 取 to 再往前30天的 00:00:00。特殊时段固定范围(均为同一天内)：凌晨00:00:00~06:00:00、早上04:00:00~12:00:00、上午08:00:00~12:00:00、中午12:00:00~14:00:00、下午12:00:00~18:00:00、傍晚17:00:00~19:00:00、晚上18:00:00~次日00:00:00(晚上跨日，to 必须写成次日的 00:00:00，不可写 24:00:00)。未限定时段的整天查询用 00:00:00~23:59:59。",
+      "type": "object",
+      "properties": {
+       "field": {
+        "type": "string",
+        "description": "范围定位维度字段名",
+        "oneOf": [
+         {
+          "const": "sport_time_range",
+          "description": "赛事时间区间(格式化取值，指一个时间范围)。检索比赛开始时间，精确到秒，yyyyMMdd HH:mm:ss 格式，from/to 形如 20240603 15:00:00 ~ 20240603 16:00:00。与 sport_time 不同——sport_time_range 用于时段(上午/下午/晚上)、具体时刻、跨天区间或多日区间；用户只说某一天(如'今天'、'明天'、'昨天'、'上周一'、'6月17日')时用 sport_time 而非本字段；二者并非互斥，可在同一次查询中并存，但二者并存只有 OR 一种关系(两个时段比赛的并集)，用 or 节点组合，禁止用 and"
+         }
+        ]
+       },
+       "from": {
+        "type": "string",
+        "pattern": "^[0-9]{8} [0-9]{2}:[0-9]{2}:[0-9]{2}$",
+        "description": "起始时间(含)，格式 yyyyMMdd HH:mm:ss，精确到秒，如 20260127 06:00:00。按整天或日期区间查询时，from 取起始日的 00:00:00。"
+       },
+       "to": {
+        "type": "string",
+        "pattern": "^[0-9]{8} [0-9]{2}:[0-9]{2}:[0-9]{2}$",
+        "description": "结束时间(含)，格式 yyyyMMdd HH:mm:ss，精确到秒，如 20260127 07:00:00。按整天或日期区间查询时，to 取结束日的 23:59:59；'晚上'时段跨日，to 取次日的 00:00:00，禁止写成 24:00:00(非法时刻)。to 不得早于 from。"
+       }
+      },
+      "required": [
+       "field",
+       "from",
+       "to"
+      ],
+      "additionalProperties": false
+     }
+    },
+    "error_output": {
+     "type": "object",
+     "properties": {
+      "error_code": {
+       "type": "string",
+       "description": "错误码。MATCH_NOT_FOUND=未命中比赛；MATCH_ALREADY_STARTED=比赛已开始或已结束无法预约；RESERVATION_FAILED=预约接口调用失败；PARAM_INVALID=参数格式错误。"
+      },
+      "error_message": {
+       "type": "string",
+       "description": "错误描述"
+      }
+     }
+    },
+    "examples": [
+     {
+      "scenario": "正常预约：预约皇马的比赛",
+      "input": {
+       "query": {
+        "field": "sport_team",
+        "value": "皇马"
+       }
+      }
+     },
+     {
+      "scenario": "正常预约：预约明天的中超(赛事+日期 AND 组合定位)",
+      "input": {
+       "query": {
+        "and": [
+         {
+          "field": "sport_game",
+          "value": "中超"
+         },
+         {
+          "field": "sport_time",
+          "value": "20260812"
+         }
+        ]
+       }
+      }
+     },
+     {
+      "scenario": "正常预约：皇马和巴萨的比赛都帮我预约(同字段多值 OR，values+operator)",
+      "input": {
+       "query": {
+        "field": "sport_team",
+        "values": [
+         "皇马",
+         "巴萨"
+        ],
+        "operator": "or"
+       }
+      }
+     },
+     {
+      "scenario": "正常预约：梅西的比赛或者皇马的比赛都提醒我(跨字段 OR)",
+      "input": {
+       "query": {
+        "or": [
+         {
+          "field": "sport_star",
+          "value": "梅西"
+         },
+         {
+          "field": "sport_team",
+          "value": "皇马"
+         }
+        ]
+       }
+      }
+     },
+     {
+      "scenario": "正常预约：今天和明天上午的比赛都预约(sport_time 与 sport_time_range 并存，时间并集 OR)",
+      "input": {
+       "query": {
+        "or": [
+         {
+          "field": "sport_time",
+          "value": "20260814"
+         },
+         {
+          "field": "sport_time_range",
+          "from": "20260815 08:00:00",
+          "to": "20260815 12:00:00"
+         }
+        ]
+       }
+      }
+     },
+     {
+      "scenario": "异常：未命中比赛",
+      "input": {
+       "query": {
+        "field": "sport_team",
+        "value": "某不存在的球队"
+       }
+      },
+      "error_output": {
+       "error_code": "MATCH_NOT_FOUND",
+       "error_message": "未找到对应比赛"
+      }
+     }
+    ]
+   }
+  },
+  {
+   "tool_name": "sports_match_forecast",
+   "description": "功能：预测某场具体比赛的结果(胜负/赛果/胜率概率)。\n适用场景：用户表达预测某一场具体比赛胜负时，如'预测今晚皇马对巴萨谁能赢''湖人这场能赢吗''帮我预测昨天结束的湖人比赛'(已结束比赛可做赛果复盘)，按球队/球星/赛事/项目/阶段/相对轮次/赛季/日期等维度(详见各 const)定位比赛，支持比赛状态(live_state，覆盖未开始/进行中/已结束/回看)和时间区间(sport_time_range)。\n动作边界：只做单场比赛的结果预测，不查赛程/不预约/不放录像。\n单场 vs 赛事预测(强制分流)：本工具仅承接'单场比赛预测'(对两支球队/两名选手之间一场具体对决预测胜负，结果以胜负卡片呈现)。判定要点：用户问的是'某一场谁赢'→本工具。\n关联工具：仅查赛程用 sports_match_search；预约比赛用 sports_match_reservation；找录像/回放用 sports_vod_search；\n逻辑：维度间支持 AND/OR/NOT 任意嵌套；同一维度多值用 operator 选 and/or；NOT 排除用外层 not 节点表达；live_state 多值固定 OR 语义。",
+   "parameters": {
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "name": "sports_match_forecast",
+    "description": "功能：预测某场具体比赛的结果(胜负/赛果/胜率概率)。\n适用场景：用户表达预测某一场具体比赛胜负时，如'预测今晚皇马对巴萨谁能赢''湖人这场能赢吗''帮我预测昨天结束的湖人比赛'(已结束比赛可做赛果复盘)，按球队/球星/赛事/项目/阶段/相对轮次/赛季/日期等维度(详见各 const)定位比赛，支持比赛状态(live_state，覆盖未开始/进行中/已结束/回看)和时间区间(sport_time_range)。\n动作边界：只做单场比赛的结果预测，不查赛程/不预约/不放录像。\n单场 vs 赛事预测(强制分流)：本工具仅承接'单场比赛预测'(对两支球队/两名选手之间一场具体对决预测胜负，结果以胜负卡片呈现)。判定要点：用户问的是'某一场谁赢'→本工具。\n关联工具：仅查赛程用 sports_match_search；预约比赛用 sports_match_reservation；找录像/回放用 sports_vod_search；\n逻辑：维度间支持 AND/OR/NOT 任意嵌套；同一维度多值用 operator 选 and/or；NOT 排除用外层 not 节点表达；live_state 多值固定 OR 语义。",
+    "type": "object",
+    "properties": {
+     "query": {
+      "$ref": "#/definitions/QueryNode",
+      "description": "预测定位查询的根节点，用于定位要预测的比赛。可以是单个叶子条件，也可以是由 and/or/not 组成的复合布尔节点。"
+     }
+    },
+    "required": [
+     "query"
+    ],
+    "additionalProperties": false,
+    "definitions": {
+     "QueryNode": {
+      "description": "预测定位查询节点，用于定位要预测的比赛，支持四种形态：1) AND复合节点；2) OR复合节点；3) NOT取反节点；4) 叶子条件节点(单个字段的匹配条件)。",
+      "oneOf": [
+       {
+        "$ref": "#/definitions/AndNode"
+       },
+       {
+        "$ref": "#/definitions/OrNode"
+       },
+       {
+        "$ref": "#/definitions/NotNode"
+       },
+       {
+        "$ref": "#/definitions/LeafNode"
+       }
+      ]
+     },
+     "AndNode": {
+      "description": "AND逻辑组合节点。所有子节点条件必须同时满足。拼接规则：每个子节点条件用括号包裹，子节点之间用AND连接，例如：(sport_team:皇马) AND (sport_name:足球)。",
+      "type": "object",
+      "properties": {
+       "and": {
+        "type": "array",
+        "items": {
+         "$ref": "#/definitions/QueryNode"
+        },
+        "minItems": 1,
+        "description": "AND逻辑：所有子节点条件必须同时满足。拼接时每个子条件用()包裹，子条件间用AND连接。"
+       }
+      },
+      "required": [
+       "and"
+      ],
+      "additionalProperties": false
+     },
+     "OrNode": {
+      "description": "OR逻辑组合节点。任一子节点条件满足即命中。拼接规则：每个子节点条件用括号包裹，子节点之间用 OR 连接，例如：(sport_team:皇马) OR (sport_star:梅西)。用于'或者'、'要么...要么...'类任选其一的表达。注意：同一字段的多个候选值(如'皇马或巴萨')优先用叶子节点的 values+operator=or，不要拆成多个相同字段的 OR 节点。",
+      "type": "object",
+      "properties": {
+       "or": {
+        "type": "array",
+        "items": {
+         "$ref": "#/definitions/QueryNode"
+        },
+        "minItems": 1,
+        "description": "OR逻辑：任一子节点条件满足即命中。拼接时每个子条件用()包裹，子条件间用OR连接。"
+       }
+      },
+      "required": [
+       "or"
+      ],
+      "additionalProperties": false
+     },
+     "NotNode": {
+      "description": "NOT逻辑取反节点。对单个子条件取反。拼接规则：NOT (子条件)，如 NOT (sport_team:国足)。常用于'除了...以外'、'不要...'类表达。注意：not 只接受单个子节点(对象)，不是数组；要对多个条件同时取反，请用 not 包裹 and/or 复合节点(如 {not:{and:[...]}} 表示'不同时满足这些')。",
+      "type": "object",
+      "properties": {
+       "not": {
+        "$ref": "#/definitions/QueryNode"
+       }
+      },
+      "required": [
+       "not"
+      ],
+      "additionalProperties": false
+     },
+     "LeafNode": {
+      "description": "叶子条件节点，描述对某一预测定位维度的具体匹配条件。可以是精确匹配、状态匹配或范围匹配。",
+      "type": "object",
+      "oneOf": [
+       {
+        "$ref": "#/definitions/ExactFieldCondition"
+       },
+       {
+        "$ref": "#/definitions/StatusFieldCondition"
+       },
+       {
+        "$ref": "#/definitions/RangeFieldCondition"
+       }
+      ]
+     },
+     "ExactFieldCondition": {
+      "description": "精确匹配条件。支持两种互斥形态：1) 单值 value → (field:value)；2) 多值 values 配合 operator → operator=and 时 (field:值1) AND (field:值2)，operator=or 时 (field:值1) OR (field:值2)。value/values 二者只能出现其一。",
+      "type": "object",
+      "properties": {
+       "field": {
+        "type": "string",
+        "description": "预测定位维度字段名（共10个精确匹配维度，其中 round_offset 为相对轮次偏移，格式化取值）。候选类型分三类：固定候选(取值有限可枚举，模型应在候选内取值或归一化)、半固定候选(常见取值有限但可扩展，候选值为典型示例而非全集)、开放型(取值不可枚举，按语义自由填入)。多个字段间存在语义边界，需按各 const 描述中的差异化说明选择正确字段。",
+        "oneOf": [
+         {
+          "const": "sport_team",
+          "description": "球队/俱乐部名称(开放型)。检索 team_name 字段，需100%匹配才召回，因此应填写球队规范名或用户原词，不要自行改写。与 sport_team_home/sport_team_guest 不同——sport_team 不区分主客场，是默认选择；只有用户明确说了'主场/客场'才改用对应变体。与 sport_star 不同——sport_team 是团体(俱乐部、国家队)，sport_star 是个人。适用场景如'预测皇马的比赛'。典型取值：皇家马德里、皇马、曼联、湖人、中国男篮"
+         },
+         {
+          "const": "sport_team_home",
+          "description": "主队名称(开放型)。检索 team_name_home 字段，需100%匹配才召回；标签映射沿用 sportsTeam。仅当用户明确表达主场语义时使用(如'预测皇马主场的比赛'、'在曼联主场踢的那场谁赢')，否则一律用 sport_team"
+         },
+         {
+          "const": "sport_team_guest",
+          "description": "客队名称(开放型)。检索 team_name_guest 字段，需100%匹配才召回；标签映射沿用 sportsTeam。仅当用户明确表达客场语义时使用(如'预测皇马客场的比赛'、'做客巴萨那场能赢吗')，否则一律用 sport_team"
+         },
+         {
+          "const": "sport_star",
+          "description": "运动员/球星姓名(开放型)。检索 player_name 或 title 字段，任一100%匹配即召回。与 sport_team 不同——sport_star 是个人(梅西、詹姆斯、C罗)，球队名和国家队名(皇马、中国男篮)应归 sport_team。适用场景如'预测梅西这场比赛'、'有詹姆斯的比赛预测一下胜负'"
+         },
+         {
+          "const": "sport_game",
+          "description": "赛事/联赛名称(半固定候选)。检索 competition_name 或 competition_alias_name，任一字段满足即召回，因此别名(如'欧冠'对应'欧洲冠军联赛')可直接填用户原词。与 sport_name 不同——sport_game 是具体赛事IP，sport_name 是运动项目大类；'足球比赛'用 sport_name，'欧冠比赛'用 sport_game。适用场景如'预测NBA的比赛'、'预测今晚中超'。典型取值：世界杯、欧冠、欧联杯、英超、西甲、意甲、德甲、法甲、中超、亚冠、欧洲杯、亚洲杯、世俱杯、NBA、CBA、奥运会"
+         },
+         {
+          "const": "sport_name",
+          "description": "运动项目类型(半固定候选)。检索二级分类 child_category_name，其中一个字段满足条件即召回。与 sport_game 不同——sport_name 只描述'什么运动'，不含具体赛事信息；用户同时给出项目和赛事时两个字段可并存(如'足球欧冠')。典型取值：足球、篮球、网球、排球、乒乓球、羽毛球、田径、游泳、赛车、拳击、格斗、台球、高尔夫、冰雪、电竞(候选可扩展，按用户原词填入)"
+         },
+         {
+          "const": "sport_competition_phase",
+          "description": "比赛阶段(半固定候选)。检索 round_name 字段，需100%匹配才召回。与 round_offset 不同——sport_competition_phase 是赛程中的阶段名称(绝对概念)，round_offset 是相对当前的轮次偏移。典型取值：资格赛、小组赛、附加赛、淘汰赛、1/8决赛、四分之一决赛、半决赛、决赛、季后赛、总决赛、常规赛"
+         },
+         {
+          "const": "round_offset",
+          "description": "相对轮次偏移(格式化取值)。作为 query 内普通叶子节点使用。取值为相对当前轮次的整数偏移(字符串形态)：负数表示往前(如'上一轮'→\"-1\"、'上两轮'→\"-2\")，正数表示往后(如'下一轮'→\"1\"、'下两轮'→\"2\")。用 value 承载单值，如 {field:\"round_offset\", value:\"1\"}。与 sport_competition_phase 不同——round_offset 是相对当前的轮次偏移，'第3轮'这类绝对轮次名不属于本字段。不涉及时不传。"
+         },
+         {
+          "const": "sport_season",
+          "description": "赛季(半固定候选)。检索 season_name 字段，需100%匹配才召回。与 sport_time/sport_time_range 不同——sport_season 是赛季标识(跨年周期)，时间字段是具体日期或时刻区间；'预测2024-2025赛季的比赛'用 sport_season，'预测2024年7月15日的比赛'用 sport_time。典型取值：2020-2021赛季、20-21赛季、2024-2025赛季、本赛季、上赛季"
+         },
+         {
+          "const": "sport_time",
+          "description": "赛事日期(格式化取值，指具体某一天)。检索 start_time_day_format 字段，值必须为 yyyyMMdd 格式的单个日期(如20240715)。适用于用户只给出某一天的场景，无论绝对日期(如'预测6月17日的比赛')还是相对日期(如'预测今天'、'预测明天'、'预测昨天'、'预测上周一'、'预测下周五')都归本字段，需按当前日期归一化为 yyyyMMdd 绝对日期。与 sport_time_range 不同——sport_time 是单日匹配(只到天)，sport_time_range 是精确到秒的时刻区间(如'下午3点到5点'、'15:00:00~16:00:00')；二者并非互斥，可在同一次查询中并存，但二者并存只有 OR 一种关系(两个时段比赛的并集)，用 or 节点组合，禁止用 and。注意：当用户并列多个时间范围(如'预测今天和明天上午的比赛'、'预测今天或下周的比赛'，'和'/'或'均同义)时，语义都是两个时段比赛的并集，必须用 OR 组合：(sport_time:今天) OR (sport_time_range:明天上午)；不可用 AND(AND 表示同一场比赛要同时落在两个时间，不可能命中)。"
+         }
+        ]
+       },
+       "value": {
+        "type": "string",
+        "description": "单值精确匹配，拼接为(field:value)。"
+       },
+       "values": {
+        "type": "array",
+        "items": {
+         "type": "string"
+        },
+        "minItems": 1,
+        "description": "多值匹配。列表中每个值之间按 operator 指定的逻辑连接；未传 operator 时默认 or。体育场景同字段多值以 OR 居多(如'皇马或巴萨'、'西甲或英超')。注意：表达'或'语义时用 values+operator=or，不要把候选值用逗号拼在单个 value 里。"
+       },
+       "operator": {
+        "type": "string",
+        "enum": [
+         "and",
+         "or"
+        ],
+        "description": "values 多值间的逻辑连接。and=所有值需同时满足(体育场景极少，一场比赛几乎不可能同时属于两支球队/两个赛事，仅'某球队同时打联赛+杯赛'等少数场景可用)；or=任一值满足即命中(常见)。仅对 values 有效；使用 value 单值时不应传本字段。未传时默认 or。"
+       }
+      },
+      "required": [
+       "field"
+      ],
+      "oneOf": [
+       {
+        "required": [
+         "value"
+        ]
+       },
+       {
+        "required": [
+         "values"
+        ]
+       }
+      ],
+      "additionalProperties": false
+     },
+     "StatusFieldCondition": {
+      "description": "状态标识条件(固定候选)。用于取值可枚举的状态字段，与 ExactFieldCondition 中的其他维度不同——状态字段只做状态过滤，不参与球队/球星/赛事等语义匹配。预测可覆盖未开始(1)/进行中(2)/已结束(3)/回看(4)四种状态，用于处理用户各种实际问法(如'帮我预测昨天结束的湖人比赛'这类已结束比赛的复盘预测)。不传表示不涉及该条件。状态字段多值固定为 OR 语义(一场比赛同时只能有一个状态，AND 无意义，故不提供 operator)。",
+      "type": "object",
+      "properties": {
+       "field": {
+        "type": "string",
+        "description": "状态字段名",
+        "oneOf": [
+         {
+          "const": "live_state",
+          "description": "比赛状态(固定候选)。检索 live_state 字段。1=未开始，2=进行中，3=已结束，4=回看。预测对四种状态均适用：未开始预测胜负概率、进行中预测实时走向、已结束/回看可做赛果复盘验证。注意：0(合作方未提供实时状态，需按比赛起始时间动态计算)与5时间未定/6推迟/7异常终止/8比赛取消均为无需关注的状态，不要生成。"
+         }
+        ]
+       },
+       "value": {
+        "type": "string",
+        "enum": [
+         "1",
+         "2",
+         "3",
+         "4"
+        ],
+        "description": "单状态值。自然语言归一化规则：'还没开始/未开始'→\"1\"；'正在比赛/进行中/直播中'→\"2\"；'已结束/结束了/昨天结束的/刚结束的'→\"3\"；'回看/录像回放'→\"4\"。用户未提及比赛状态时不传本条件。"
+       },
+       "values": {
+        "type": "array",
+        "items": {
+         "type": "string",
+         "enum": [
+          "1",
+          "2",
+          "3",
+          "4"
+         ]
+        },
+        "minItems": 1,
+        "uniqueItems": true,
+        "description": "多状态值(固定 OR 语义，任一满足即命中)。如'已经结束的/结束了的比赛'→[\"3\",\"4\"] 同时覆盖已结束与回看；'还没开始或正在进行的'→[\"1\",\"2\"]。用户未提及比赛状态时不传本条件。"
+       }
+      },
+      "required": [
+       "field"
+      ],
+      "oneOf": [
+       {
+        "required": [
+         "value"
+        ]
+       },
+       {
+        "required": [
+         "values"
+        ]
+       }
+      ],
+      "additionalProperties": false
+     },
+     "RangeFieldCondition": {
+      "description": "范围匹配条件。支持 sport_time_range(赛事时间区间) 范围字段，from/to 均为 yyyyMMdd HH:mm:ss 格式日期时间字符串，精确到秒，后续由系统转换为10位UTC秒级时间戳区间进行查询(最终形态如 [1716534389 TO 1717052789])。预测'比赛开始时间'处于 from(含) 和 to(含) 之间的赛程，from 和 to 可以一致。时间范围生成规则(共四类场景，先判断用户是否已给出明确范围，已给出则不做任何扩展)：1)用户输入具体时间且已给出时间范围(如'预测今天下午3点到5点的比赛')，直接按用户给出的起止时间填 from/to；2)用户输入具体时间但无范围，以该时间点为起点，根据语义(之前/之后)往前或往后扩展1小时作为另一端，扩展时保留原有的分和秒，例如'预测今天下午三点的比赛'→from:20240603 15:00:00, to:20240603 16:00:00；'预测明天下午三点二十的比赛'→from:20240604 15:20:00, to:20240604 16:20:00；'预测今天下午三点二十分十五秒的比赛'→from:20240603 15:20:15, to:20240603 16:20:15；3)用户输入具体日期且已给出日期范围(如'预测6月17日到6月20日的比赛')，直接按用户给出的起止日期填，from 取起始日 00:00:00、to 取结束日 23:59:59；4)用户输入具体日期但无范围，以该日期为起点，根据语义(之前/之后)往前或往后扩展30天：'之后'含基准日当天，from 取基准日 00:00:00、to 取基准日+30天 23:59:59(如'预测6月17日之后的比赛'→from:20240617 00:00:00, to:20240717 23:59:59)；'之前'不含基准日当天，to 取基准日前一日 23:59:59、from 取 to 再往前30天的 00:00:00。特殊时段固定范围(均为同一天内)：凌晨00:00:00~06:00:00、早上04:00:00~12:00:00、上午08:00:00~12:00:00、中午12:00:00~14:00:00、下午12:00:00~18:00:00、傍晚17:00:00~19:00:00、晚上18:00:00~次日00:00:00(晚上跨日，to 必须写成次日的 00:00:00，不可写 24:00:00)。未限定时段的整天查询用 00:00:00~23:59:59。",
+      "type": "object",
+      "properties": {
+       "field": {
+        "type": "string",
+        "description": "范围定位维度字段名",
+        "oneOf": [
+         {
+          "const": "sport_time_range",
+          "description": "赛事时间区间(格式化取值，指一个时间范围)。检索比赛开始时间，精确到秒，yyyyMMdd HH:mm:ss 格式，from/to 形如 20240603 15:00:00 ~ 20240603 16:00:00。与 sport_time 不同——sport_time_range 用于时段(上午/下午/晚上)、具体时刻、跨天区间或多日区间；用户只说某一天(如'今天'、'明天'、'昨天'、'上周一'、'6月17日')时用 sport_time 而非本字段；二者并非互斥，可在同一次查询中并存，但二者并存只有 OR 一种关系(两个时段比赛的并集)，用 or 节点组合，禁止用 and"
+         }
+        ]
+       },
+       "from": {
+        "type": "string",
+        "pattern": "^[0-9]{8} [0-9]{2}:[0-9]{2}:[0-9]{2}$",
+        "description": "起始时间(含)，格式 yyyyMMdd HH:mm:ss，精确到秒，如 20260127 06:00:00。按整天或日期区间查询时，from 取起始日的 00:00:00。"
+       },
+       "to": {
+        "type": "string",
+        "pattern": "^[0-9]{8} [0-9]{2}:[0-9]{2}:[0-9]{2}$",
+        "description": "结束时间(含)，格式 yyyyMMdd HH:mm:ss，精确到秒，如 20260127 07:00:00。按整天或日期区间查询时，to 取结束日的 23:59:59；'晚上'时段跨日，to 取次日的 00:00:00，禁止写成 24:00:00(非法时刻)。to 不得早于 from。"
+       }
+      },
+      "required": [
+       "field",
+       "from",
+       "to"
+      ],
+      "additionalProperties": false
+     }
+    },
+    "error_output": {
+     "type": "object",
+     "properties": {
+      "error_code": {
+       "type": "string",
+       "description": "错误码。MATCH_NOT_FOUND=未命中比赛；FORECAST_UNSUPPORTED=该赛事不支持预测；FORECAST_NO_DATA=无足够数据生成预测；PARAM_INVALID=参数格式错误。"
+      },
+      "error_message": {
+       "type": "string",
+       "description": "错误描述"
+      }
+     }
+    },
+    "examples": [
+     {
+      "scenario": "正常预测：预测皇马对巴萨的胜负(主客队 AND 组合定位)",
+      "input": {
+       "query": {
+        "and": [
+         {
+          "field": "sport_team_home",
+          "value": "皇马"
+         },
+         {
+          "field": "sport_team_guest",
+          "value": "巴萨"
+         }
+        ]
+       }
+      }
+     },
+     {
+      "scenario": "正常预测：预测某球星本场的胜负",
+      "input": {
+       "query": {
+        "field": "sport_star",
+        "value": "詹姆斯"
+       }
+      }
+     },
+     {
+      "scenario": "异常：未命中比赛",
+      "input": {
+       "query": {
+        "field": "sport_team",
+        "value": "某不存在的球队"
+       }
+      },
+      "error_output": {
+       "error_code": "MATCH_NOT_FOUND",
+       "error_message": "未找到对应比赛"
+      }
+     }
+    ]
+   }
+  },
+  {
+   "tool_name": "sports_match_lineup_search",
+   "description": "体育比赛阵容查询工具(sports_match_lineup_search)。针对上下文中已锁定的某一场具体比赛，查询双方的完整阵容(如'这场比赛的阵容'、'首发名单是谁')。仅部分足球比赛支持。结果使用：直接展示阵容卡片，含首发+替补(同线上一致，不单独区分首发/替补分组)。本工具是指整份阵容名单的查询；若用户只问某一名球员在本场是否首发/是否上场(如'这场比赛C罗首发了吗')，属于单点信息问答，应使用 sports_match_event_qa_search，不属于本工具。前置条件：本工具不做赛程检索，不接受球队/赛事/时间等槽位，必须依赖上下文(当前播放或上一轮对话)已确定的具体比赛。数据覆盖限制：本工具仅覆盖部分足球比赛，非足球项目及无第三方数据的足球场次可能查不到，此时按空结果处理，不要臆造数据。",
+   "parameters": {
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "name": "sports_match_lineup_search",
+    "description": "体育比赛阵容查询工具(sports_match_lineup_search)。针对上下文中已锁定的某一场具体比赛，查询双方的完整阵容(如'这场比赛的阵容'、'首发名单是谁')。仅部分足球比赛支持。结果使用：直接展示阵容卡片，含首发+替补(同线上一致，不单独区分首发/替补分组)。本工具是指整份阵容名单的查询；若用户只问某一名球员在本场是否首发/是否上场(如'这场比赛C罗首发了吗')，属于单点信息问答，应使用 sports_match_event_qa_search，不属于本工具。前置条件：本工具不做赛程检索，不接受球队/赛事/时间等槽位，必须依赖上下文(当前播放或上一轮对话)已确定的具体比赛。数据覆盖限制：本工具仅覆盖部分足球比赛，非足球项目及无第三方数据的足球场次可能查不到，此时按空结果处理，不要臆造数据。",
+    "type": "object",
+    "properties": {
+     "matchId": {
+      "type": "string",
+      "minLength": 1,
+      "description": "用户指定的比赛id信息，格式为字符串，通过该信息来查询指定比赛的相关数据",
+      "examples": [
+       "82110",
+       "70736"
+      ]
+     },
+     "required": [
+      "matchId"
+     ]
+    },
+    "additionalProperties": false,
+    "error_output": {
+     "type": "object",
+     "properties": {
+      "error_code": {
+       "type": "string",
+       "description": "错误码。MATCH_NOT_LOCKED=上下文未锁定具体比赛(需先用 sports_match_search 定位)；NO_DATA=该比赛无对应数据(如非足球场次查不到对应数据)；PARAM_INVALID=参数格式错误。"
+      },
+      "error_message": {
+       "type": "string",
+       "description": "错误描述"
+      }
+     }
+    },
+    "examples": [
+     {
+      "scenario": "阵容查询：双方首发名单",
+      "input": {
+       "matchId": "123456"
+      }
+     },
+     {
+      "scenario": "异常：无数据返回",
+      "input": {},
+      "error_output": {
+       "error_code": "NO_DATA",
+       "error_message": "NO_DATA"
+      }
+     }
+    ]
+   }
+  },
+  {
+   "tool_name": "sports_match_event_card_search",
+   "description": "体育比赛赛况查询工具(sports_match_event_card_search)。针对上下文中已锁定的某一场具体比赛，查询本场比赛的整体赛况(如'这场比赛的赛况'、'比赛情况怎么样')。仅部分足球比赛支持。结果使用：直接展示事件汇总卡片，按时间线汇总全场关键事件。与 sports_match_event_qa_search 不同——本工具是概览式的整场赛况展示，event_qa 是针对某类具体事件的提问并由模型总结作答。前置条件：本工具不做赛程检索，不接受球队/赛事/时间等槽位，必须依赖上下文(当前播放或上一轮对话)已确定的具体比赛。数据覆盖限制：本工具仅覆盖部分足球比赛，非足球项目及无第三方数据的足球场次可能查不到，此时按空结果处理，不要臆造数据。",
+   "parameters": {
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "name": "sports_match_event_card_search",
+    "description": "体育比赛赛况查询工具(sports_match_event_card_search)。针对上下文中已锁定的某一场具体比赛，查询本场比赛的整体赛况(如'这场比赛的赛况'、'比赛情况怎么样')。仅部分足球比赛支持。结果使用：直接展示事件汇总卡片，按时间线汇总全场关键事件。与 sports_match_event_qa_search 不同——本工具是概览式的整场赛况展示，event_qa 是针对某类具体事件的提问并由模型总结作答。前置条件：本工具不做赛程检索，不接受球队/赛事/时间等槽位，必须依赖上下文(当前播放或上一轮对话)已确定的具体比赛。数据覆盖限制：本工具仅覆盖部分足球比赛，非足球项目及无第三方数据的足球场次可能查不到，此时按空结果处理，不要臆造数据。",
+    "type": "object",
+    "properties": {
+     "matchId": {
+      "type": "string",
+      "minLength": 1,
+      "description": "用户指定的比赛id信息，格式为字符串，通过该信息来查询指定比赛的相关数据",
+      "examples": [
+       "82110",
+       "70736"
+      ]
+     },
+     "required": [
+      "matchId"
+     ]
+    },
+    "additionalProperties": false,
+    "error_output": {
+     "type": "object",
+     "properties": {
+      "error_code": {
+       "type": "string",
+       "description": "错误码。MATCH_NOT_LOCKED=上下文未锁定具体比赛(需先用 sports_match_search 定位)；NO_DATA=该比赛无对应数据(如非足球场次查不到对应数据)；PARAM_INVALID=参数格式错误。"
+      },
+      "error_message": {
+       "type": "string",
+       "description": "错误描述"
+      }
+     }
+    },
+    "examples": [
+     {
+      "scenario": "赛况查询：整场赛况",
+      "input": {
+       "matchId": "123456"
+      }
+     },
+     {
+      "scenario": "异常：上下文未锁定具体比赛",
+      "input": {},
+      "error_output": {
+       "error_code": "NO_DATA",
+       "error_message": "NO_DATA"
+      }
+     }
+    ]
+   }
+  },
+  {
+   "tool_name": "sports_match_statistics_card_search",
+   "description": "体育比赛技术统计查询工具(sports_match_statistics_card_search)。针对上下文中已锁定的某一场具体比赛，查询本场比赛的技术统计数据(如'这场比赛的数据'、'控球率多少'、'射门数据')。仅部分足球比赛支持。结果使用：直接展示技术统计卡片，含控球率、射门数等量化指标。与 sports_match_event_card_search 不同——本工具是量化统计指标，event_card 是离散的事件时间线。前置条件：本工具不做赛程检索，不接受球队/赛事/时间等槽位，必须依赖上下文(当前播放或上一轮对话)已确定的具体比赛。数据覆盖限制：本工具仅覆盖部分足球比赛，非足球项目及无第三方数据的足球场次可能查不到，此时按空结果处理，不要臆造数据。",
+   "parameters": {
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "name": "sports_match_statistics_card_search",
+    "description": "体育比赛技术统计查询工具(sports_match_statistics_card_search)。针对上下文中已锁定的某一场具体比赛，查询本场比赛的技术统计数据(如'这场比赛的数据'、'控球率多少'、'射门数据')。仅部分足球比赛支持。结果使用：直接展示技术统计卡片，含控球率、射门数等量化指标。与 sports_match_event_card_search 不同——本工具是量化统计指标，event_card 是离散的事件时间线。前置条件：本工具不做赛程检索，不接受球队/赛事/时间等槽位，必须依赖上下文(当前播放或上一轮对话)已确定的具体比赛。数据覆盖限制：本工具仅覆盖部分足球比赛，非足球项目及无第三方数据的足球场次可能查不到，此时按空结果处理，不要臆造数据。",
+    "type": "object",
+    "properties": {
+     "matchId": {
+      "type": "string",
+      "minLength": 1,
+      "description": "用户指定的比赛id信息，格式为字符串，通过该信息来查询指定比赛的相关数据",
+      "examples": [
+       "82110",
+       "70736"
+      ]
+     },
+     "required": [
+      "matchId"
+     ]
+    },
+    "additionalProperties": false,
+    "error_output": {
+     "type": "object",
+     "properties": {
+      "error_code": {
+       "type": "string",
+       "description": "错误码。MATCH_NOT_LOCKED=上下文未锁定具体比赛(需先用 sports_match_search 定位)；NO_DATA=该比赛无对应数据(如非足球场次查不到对应数据)；PARAM_INVALID=参数格式错误。"
+      },
+      "error_message": {
+       "type": "string",
+       "description": "错误描述"
+      }
+     }
+    },
+    "examples": [
+     {
+      "scenario": "技术统计：控球率/射门数据",
+      "input": {
+       "matchId": "123456"
+      }
+     },
+     {
+      "scenario": "异常：无数据返回",
+      "input": {},
+      "error_output": {
+       "error_code": "；NO_DATA",
+       "error_message": "NO_DATA"
+      }
+     }
+    ]
+   }
+  }
+ ]
+}

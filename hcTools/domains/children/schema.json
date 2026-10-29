@@ -1,0 +1,1116 @@
+{
+  "domain": "少儿",
+  "domain_key": "children",
+  "tools": [
+    {
+      "tool_name": "educ_search_all",
+      "description": "少儿媒资搜索工具(educ_search_all)。当用户表达了搜索、查找少儿内容的意图时触发，包括按标题(title)、媒资类型(content_type)、蛛网标签二级分类(children_second_genre)/三级分类(children_third_genre)、少儿培养目标(training_objectives)、角色(role)、少儿八大智能(multiple_intelligences)、国家(country)、出品公司(company)、语言(language)、性别(gender)、节日(festival)、奖项(prize)、音效(features)等维度筛选，以及按免付费状态(is_fee)过滤和发布时间范围(release_time, 格式yyyyMMdd)筛选的场景。支持13个精确匹配维度、1个状态维度(is_fee 0|1)和2个范围维度(age_range 年龄范围、release_time 发布时间区间)以及3个媒资维度(series部数或季数、video_index集数或期数、voice_start_pos起播位置，单位为秒)。\\n检索模式：DSL 组合检索（形态 A）。query 为递归布尔树，不同槽位间可 and/or/not 任意嵌套；同一槽位多值用 values + operator。\\n不适用场景：相关推荐、查找相似的媒资改用educ_relate_search；查询用户的历史观看记录改用educ_history；描述性等方式表达影视查找意图的场景，包括剧情描述、台词描述、复杂组合条件等改用educ_fuzzy_search。\\n提参约束：同一字段的多个候选值优先用叶子节点的 values + operator=or，不要拆成多个同字段的 or 子节点。排除语义用外层 not 包裹，不要在 value 里写「非」「除了」。\\n时间解析：涉及到的时间范围为范围维度中的发布时间范围release_time和voice_start_pos起播位置，其中release_time为精确到日的yyyyMMdd 格式字符串，voiceStartPos为代表起播位置的整数，单位为秒，如第 10 分钟传 600，3 分 09 秒传 189。",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "query": {
+            "$$ref": "#/definitions/QueryNode",
+            "description": "搜索查询的根节点。可以是单个叶子条件，也可以是由 and/or/not 组成的复合布尔节点，支持任意层嵌套。"
+          },
+          "retext": {
+            "type": "string",
+            "minLength": 1,
+            "description": "用户原始语句经过改写后的语句。"
+          },
+          "sort": {
+            "type": "object",
+            "minProperties": 1,
+            "additionalProperties": false,
+            "description": "排序规则，可选维度中的一种或多种组合。",
+            "properties": {
+              "rate": {
+                "type": "object",
+                "properties": {
+                  "order": {
+                    "type": "string",
+                    "enum": [
+                      "asc",
+                      "desc"
+                    ]
+                  }
+                },
+                "required": [
+                  "order"
+                ]
+              },
+              "hot": {
+                "type": "object",
+                "properties": {
+                  "order": {
+                    "type": "string",
+                    "enum": [
+                      "asc",
+                      "desc"
+                    ]
+                  }
+                },
+                "required": [
+                  "order"
+                ]
+              },
+              "new": {
+                "type": "object",
+                "properties": {
+                  "order": {
+                    "type": "string",
+                    "enum": [
+                      "asc",
+                      "desc"
+                    ]
+                  }
+                },
+                "required": [
+                  "order"
+                ]
+              },
+              "play": {
+                "type": "object",
+                "properties": {
+                  "order": {
+                    "type": "string",
+                    "enum": [
+                      "asc",
+                      "desc"
+                    ]
+                  }
+                },
+                "required": [
+                  "order"
+                ]
+              }
+            }
+          }
+        },
+        "required": [
+          "query",
+          "action",
+          "retext"
+        ],
+        "additionalProperties": false,
+        "definitions": {
+          "QueryNode": {
+            "description": "查询节点，支持两种形态：1) 布尔复合节点（and/or/not）；2) 叶子条件节点（单个字段的匹配条件）。递归结构，布尔节点的子节点仍是 QueryNode。",
+            "oneOf": [
+              {
+                "$$ref": "#/definitions/BoolNode"
+              },
+              {
+                "$$ref": "#/definitions/LeafNode"
+              }
+            ]
+          },
+          "BoolNode": {
+            "description": "布尔逻辑组合节点，支持 AND / OR / NOT 三种组合，可任意嵌套。三者互斥，一个节点只能带其中一个键。",
+            "type": "object",
+            "oneOf": [
+              {
+                "properties": {
+                  "and": {
+                    "type": "array",
+                    "minItems": 1,
+                    "uniqueItems": true,
+                    "items": {
+                      "$$ref": "#/definitions/QueryNode"
+                    },
+                    "description": "AND 逻辑：所有子节点条件必须同时满足。拼接时每个子条件用括号包裹，子条件间用 AND 连接，如 (title:战狼) AND (title:战狼2)。"
+                  }
+                },
+                "required": [
+                  "and"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "properties": {
+                  "or": {
+                    "type": "array",
+                    "minItems": 1,
+                    "uniqueItems": true,
+                    "items": {
+                      "$$ref": "#/definitions/QueryNode"
+                    },
+                    "description": "OR 逻辑：任一子节点条件满足即命中，用于「或者」「要么……要么……」。同一字段的多个候选值请改用叶子节点的 values + operator=or，不要拆成多个同字段 or 子节点。"
+                  }
+                },
+                "required": [
+                  "or"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "properties": {
+                  "not": {
+                    "$$ref": "#/definitions/QueryNode",
+                    "description": "NOT 逻辑：对单个子节点条件取反，用于「除了……以外」「不要……」。not 只接受对象，不是数组；要对多个条件同时取反，用 not 包裹 and/or 复合节点。"
+                  }
+                },
+                "required": [
+                  "not"
+                ],
+                "additionalProperties": false
+              }
+            ]
+          },
+          "LeafNode": {
+            "description": "叶子条件节点，描述对某一搜索维度的具体匹配条件。四类按 field 取值区分：开放型或半固定维度用 ExactFieldCondition，固定候选的状态维度用 StatusFieldCondition，连续区间用 RangeFieldCondition，涉及到媒资详细信息如第几部、以及起播时间使用PlaybackControlFieldCondition。",
+            "type": "object",
+            "oneOf": [
+              {
+                "$$ref": "#/definitions/ExactFieldCondition"
+              },
+              {
+                "$$ref": "#/definitions/StatusFieldCondition"
+              },
+              {
+                "$$ref": "#/definitions/RangeFieldCondition"
+              },
+              {
+                "$$ref": "#/definitions/PlaybackControlFieldCondition"
+              }
+            ]
+          },
+          "ExactFieldCondition": {
+            "description": "精确匹配条件，用于开放型或半固定取值的检索维度。value 与 values 互斥，只能出现其一；operator 仅对 values 有效，使用 value 单值时不得传 operator。",
+            "type": "object",
+            "properties": {
+              "field": {
+                "type": "string",
+                "description": "检索维度字段名。取值必须来自下列候选，不得自造；各候选的语义辨析与格式要求见其自身 description。",
+                "oneOf": [
+                  {
+                    "const": "title",
+                    "description": "媒资作品标题(开放型)。媒资作品标题(开放型)。用户想搜索\"某个具体作品\"时使用，填入的是作品本身的名字。与 role(角色) 的核心区分：title 回答\"作品叫什么\"，role 回答\"作品里有谁\"。典型取值：动画片名(小猪佩奇、汪汪队)、电影名(战狼、流浪地球)、游戏名(斗罗大陆、王者荣耀)、儿歌歌曲名(红蜻蜓)、儿歌集锦名(儿歌多多)、儿童故事名(三毛)、玩具名(陀螺、溜溜球)、玩具视频名(芭比玩具)、儿童视频名(挖掘机)、手工类型、棋类名称(象棋)、ar百科媒资(北极熊)、儿童课程类型(国学经典、启蒙教育)、少儿视频弱标签(老鼠爱大米、起风了)等"
+                  },
+                  {
+                    "const": "content_type",
+                    "description": "媒资表现形式(固定候选)。枚举：动画、卡通、动画片、动画剧、动画剧集"
+                  },
+                  {
+                    "const": "children_second_genre",
+                    "examples": [
+                      "英语",
+                      "早教",
+                      "故事",
+                      "绘本",
+                      "数学"
+                    ],
+                    "description": "蛛网标签-二级分类（半固定候选，全集见 维表）少儿内容蛛网分类体系下的较粗粒度大类标签。与 children_third_genre(三级分类) 是上下位关系——second_genre 是大类，third_genre 是其下的细分标签。上例为高频值，用户说法不在其中时按语义就近归一化到维表内取值；无法归一化时不传该字段，不要自造新值。"
+                  },
+                  {
+                    "const": "children_third_genre",
+                    "examples": [
+                      "恐龙",
+                      "搞笑",
+                      "字母",
+                      "数字",
+                      "古诗词"
+                    ],
+                    "description": "蛛网标签-三级分类(半固定候选，全集见 维表)。少儿内容蛛网分类体系下的较细粒度标签，是 children_second_genre(二级分类) 的下位细分。上例为高频值，用户说法不在其中时按语义就近归一化到维表内取值；无法归一化时不传该字段，不要自造新值。"
+                  },
+                  {
+                    "const": "training_objectives",
+                    "examples": [
+                      "识字",
+                      "音乐启蒙",
+                      "安全教育",
+                      "勇敢",
+                      "认识数字"
+                    ],
+                    "description": "少儿培养目标(半固定候选，全集见 维表)八大智能下的二级分类维度，把每个智能域拆成若干具体、可观察、可训练的行为目标，如品格习惯下的责任心/自律能力/情绪管理、人际交往下的团队协作/学会分享/秩序感、语言沟通下的倾听理解/口语表达等。上例为高频值，用户说法不在其中时按语义就近归一化到维表内取值；无法归一化时不传该字段，不要自造新值。"
+                  },
+                  {
+                    "const": "role",
+                    "description": "角色(开放型)。用户想搜索\"包含某个人物/角色的作品\"时使用，填入的是作品中的人物名而非作品名。"
+                  },
+                  {
+                    "const": "multiple_intelligences",
+                    "description": "少儿八大智能（(固定候选)。枚举：人际交往、空间想象、品格习惯、识物认知、数字推理、音乐节奏、肢体运动、语言沟通、学说话"
+                  },
+                  {
+                    "const": "country",
+                    "examples": [
+                      "内地",
+                      "台湾",
+                      "澳门",
+                      "香港",
+                      "美国"
+                    ],
+                    "description": "地区(半固定候选，全集见 维表）。如：国内(内地)、中国区域(中华、香港)、外国国家(卢森堡、苏格兰)。上例为高频值，用户说法不在其中时按语义就近归一化到维表内取值；无法归一化时不传该字段，不要自造新值。"
+                  },
+                  {
+                    "const": "company",
+                    "examples": [
+                      "优酷",
+                      "漫威",
+                      "迪士尼电影公司",
+                      "中央电视台",
+                      "尼克罗迪恩动画工作室"
+                    ],
+                    "description": "出品公司(半固定候选，全集见 维表）。上例为高频值，用户说法不在其中时按语义就近归一化到维表内取值；无法归一化时不传该字段，不要自造新值。"
+                  },
+                  {
+                    "const": "language",
+                    "examples": [
+                      "英文",
+                      "中文",
+                      "日语",
+                      "粤语",
+                      "法语"
+                    ],
+                    "description": "语言（半固定候选，全集见 维表）。如：中文、英语、日语。上例为高频值，用户说法不在其中时按语义就近归一化到维表内取值；无法归一化时不传该字段，不要自造新值。"
+                  },
+                  {
+                    "const": "gender",
+                    "examples": [
+                      "妇女",
+                      "美女",
+                      "女",
+                      "男",
+                      "男性"
+                    ],
+                    "description": "性别(半固定候选，全集见 维表）。男性、女性。上例为高频值，用户说法不在其中时按语义就近归一化到维表内取值；无法归一化时不传该字段，不要自造新值。"
+                  },
+                  {
+                    "const": "festival",
+                    "description": "节日(开放型)。按节日筛选内容时使用。festival 是节日名、也包含寒假、暑假。"
+                  },
+                  {
+                    "const": "prize",
+                    "examples": [
+                      "戛纳金棕榈奖",
+                      "奥斯卡金像奖",
+                      "柏林电影节",
+                      "白玉兰奖",
+                      "飞天奖"
+                    ],
+                    "description": "影视奖项（半固定候选，全集见 维表）。上例为高频值，用户说法不在其中时按语义就近归一化到维表内取值；无法归一化时不传该字段，不要自造新值。"
+                  }
+                ]
+              },
+              "value": {
+                "type": "string",
+                "minLength": 1,
+                "description": "单值精确匹配，拼接为 (field:value)。仅传一个候选值时使用；多个候选值请改用 values + operator。与 values 互斥。"
+              },
+              "values": {
+                "type": "array",
+                "minItems": 1,
+                "uniqueItems": true,
+                "items": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "description": "多值匹配。各值之间按 operator 连接，未传 operator 时默认 or。与 value 互斥。"
+              },
+              "operator": {
+                "type": "string",
+                "enum": [
+                  "and",
+                  "or"
+                ],
+                "default": "or",
+                "description": "values 多值间的逻辑连接。or=任一值满足即命中；and=所有值需同时满足。仅对 values 有效，使用 value 单值时不应传。"
+              }
+            },
+            "required": [
+              "field"
+            ],
+            "oneOf": [
+              {
+                "required": [
+                  "value"
+                ],
+                "not": {
+                  "required": [
+                    "operator"
+                  ]
+                }
+              },
+              {
+                "required": [
+                  "values"
+                ]
+              }
+            ],
+            "additionalProperties": false
+          },
+          "StatusFieldCondition": {
+            "description": "状态标识条件（固定候选）。用于取值可枚举的状态字段，值为字符串 \"0\" 或 \"1\"。is_fee: \"0\"=免费, \"1\"=付费。不传表示不涉及该条件。多值固定 OR 语义，故不提供 operator。",
+            "type": "object",
+            "properties": {
+              "field": {
+                "type": "string",
+                "description": "状态字段名。仅用于固定候选的状态维度，开放型取值请改用 ExactFieldCondition。",
+                "oneOf": [
+                  {
+                    "const": "is_fee",
+                    "description": "免付费标识（固定候选）。\"0\"=免费、不要会员，\"1\"=付费、要会员、vip"
+                  }
+                ]
+              },
+              "value": {
+                "type": "string",
+                "enum": [
+                  "0",
+                  "1"
+                ],
+                "description": "状态值，字符串 \"0\" 或 \"1\"；用户未提及时不传本条件。拼接时由拼接层转为整数 0/1 下发。"
+              }
+            },
+            "required": [
+              "field",
+              "value"
+            ],
+            "additionalProperties": false
+          },
+          "RangeFieldCondition": {
+            "description": "范围匹配条件。支持 age_range(年龄范围)、release_time(发布时间范围)两个范围字段，from 与 to 一律以字符串形式传递。取值格式：age_range 为非负整数年龄的数字字符串(如 \"8\"、\"12\")；release_time 为 yyyyMMdd 8 位日期字符串(如 \"20200101\")，只精确到日、不含时分秒。端点填写规则：from 与 to 必须都填；闭区间(含单点)两端均填具体值且均含端点；开放区间无界的一端填字符串 \"*\"——'以上/之后' from 填值、to 填 \"*\"(拼接为 [from TO *])；'以下/之前' from 填 \"*\"、to 填值(拼接为 [* TO to])；from 与 to 不得同时为 \"*\"。多个范围区间需要 OR/AND 组合时(如'8分以上或6分以下')，用外层 and/or 节点包裹多个 RangeFieldCondition(每个含一个同字段区间)，本条件内部不再支持多值。范围生成规则(共四类场景，先判断用户是否已给出明确范围，已给出则不做任何扩展)：1)用户已给出明确区间(如'6到12岁'、'2018年到2020年')，from/to 均填具体值(如 from:\"6\", to:\"12\")；2)用户给出单点值且无方向词(如'8岁的动画片')，from 与 to 均取该点值(如 from:\"8\", to:\"8\")；3)用户给出单点值带方向词，无界端填 \"*\"：'8岁以上'→from:\"8\", to:\"*\"；'2020年之后'→from:\"20200101\", to:\"*\"；4)用户给出年份或日期但无区间：整年(如'2020年')from 取该年 0101、to 取该年 1231(如 from:\"20200101\", to:\"20201231\")。'以上/以下/之间' 均含端点值。from / to 根层统一为 string，具体格式由下方 allOf 按 field 用 pattern 收窄；新增范围维度时在 allOf 追加分支即可，不要在根层写死单一格式。",
+            "type": "object",
+            "properties": {
+              "field": {
+                "type": "string",
+                "description": "范围搜索维度字段名。",
+                "enum": [
+                  "age_range",
+                  "release_time"
+                ]
+              },
+              "from": {
+                "type": [
+                  "string"
+                ],
+                "description": "范围起始值(格式化取值)，字符串形式。age_range 为非负整数数字字符串，release_time 为 yyyyMMdd；'以下/之前' 开放下界时填 \"*\"。"
+              },
+              "to": {
+                "type": [
+                  "string"
+                ],
+                "description": "范围结束值(格式化取值)，格式同 from；'以上/之后' 开放上界时填 \"*\"。"
+              }
+            },
+            "required": [
+              "field",
+              "from",
+              "to"
+            ],
+            "additionalProperties": false,
+            "allOf": [
+              {
+                "if": {
+                  "properties": {
+                    "field": {
+                      "const": "age_range"
+                    }
+                  },
+                  "required": [
+                    "field"
+                  ]
+                },
+                "then": {
+                  "properties": {
+                    "from": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "pattern": "^(0|[1-9][0-9])$$"
+                        },
+                        {
+                          "const": "*"
+                        }
+                      ]
+                    },
+                    "to": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "pattern": "^(0|[1-9][0-9]*)$$"
+                        },
+                        {
+                          "const": "*"
+                        }
+                      ]
+                    }
+                  }
+                }
+              },
+              {
+                "if": {
+                  "properties": {
+                    "field": {
+                      "const": "release_time"
+                    }
+                  },
+                  "required": [
+                    "field"
+                  ]
+                },
+                "then": {
+                  "properties": {
+                    "from": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "pattern": "^[0-9]{8}$$"
+                        },
+                        {
+                          "const": "*"
+                        }
+                      ]
+                    },
+                    "to": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "pattern": "^[0-9]{8}$$"
+                        },
+                        {
+                          "const": "*"
+                        }
+                      ]
+                    }
+                  }
+                }
+              }
+            ]
+          },
+          "PlaybackControlFieldCondition": {
+            "description": "媒资详细信息控制字段。使用 field/value 形式，与 title 等检索槽位保持一致；可参与 and、or、not。value 一律为数字字符串。",
+            "oneOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "field": {
+                    "const": "series",
+                    "description": "剧集部数或季数。"
+                  },
+                  "value": {
+                    "type": "string",
+                    "pattern": "^[1-9][0-9]$$",
+                    "description": "第几部或第几季的序号，从 1 开始，数字字符串形式。例如第二季传 \"2\"。拼接时由拼接层转为整数下发。"
+                  }
+                },
+                "required": [
+                  "field",
+                  "value"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "field": {
+                    "const": "video_index",
+                    "description": "剧集集数或综艺期数。"
+                  },
+                  "value": {
+                    "type": "string",
+                    "pattern": "^[1-9][0-9]*$$",
+                    "description": "第几集或第几期的序号(格式化取值)，从 1 开始，数字字符串形式。例如第三集传 \"3\"。拼接时由拼接层转为整数下发。"
+                  }
+                },
+                "required": [
+                  "field",
+                  "value"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "field": {
+                    "const": "voice_start_pos",
+                    "description": "起播时间位置。"
+                  },
+                  "value": {
+                    "type": "string",
+                    "pattern": "^(0|[1-9][0-9]*)$",
+                    "description": "起播位置(格式化取值)，单位为秒，非负整数字符串形式。例如第 10 分钟传 \"600\"，3 分 09 秒传 \"189\""
+                  }
+                },
+                "required": [
+                  "field",
+                  "value"
+                ],
+                "additionalProperties": false
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "tool_name": "educ_fuzzy_search",
+      "description": "少儿媒资模糊搜索工具。用于处理用户以模糊、描述性等方式表达少儿查找意图的场景，包括剧情描述、台词描述、复杂组合条件等，系统将自然语言解析为结构化筛选参数后进行检索。\\n适用场景：1. 剧情/画面描述类查询，如\\\"骑着蓝色大鸟的人的动画片、\\\"主角在沙漠里找水的动画\\\"；2. 复杂组合描述，如\\\"那个胖子导演的高分动画；3. 台词/对白相关的模糊查找。 \\n不适用场景：相关媒资推荐、查找相似的媒资改用educ_relate_search；查询用户的历史观看记录改用educ_history；语料包含明显清晰的搜索槽位使用educ_search或educ_search_all。",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "retext": {
+            "type": "string",
+            "minLength": 1,
+            "description": "用户原始语句经过改写后的语句。"
+          }
+        },
+        "required": [
+          "retext"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "tool_name": "educ_relate_search",
+      "description": "少儿相关媒资搜索。当基于用户描述的参考媒资进行相似少儿内容推荐。\\n检索模式：DSL 组合检索（形态 A）。query 为递归布尔树，不同槽位间可 and/or/not 任意嵌套；同一槽位多值用 values + operator。\\n适用场景：用户表达了\\\"基于某内容找类似的\\\"、\\\"推荐相关的\\\"、\\\"找同类型的\\\"、\\\"还有没有像XX这样的\\\"等相似性推荐意图时使用，如\\\"我想看类似小猪佩奇的动画片\\\"、\\\"推荐和汪汪队差不多的少儿节目\\\"、\\\"有没有熊出没那种动画\\\"。\\n不适用场景：查询用户的历史观看记录改用educ_history；描述性等方式表达影视查找意图的场景，包括剧情描述、台词描述、复杂组合条件等改用educ_fuzzy_search；语料包含明显清晰的搜索槽位使用educ_search或educ_search_all。。\\n提参约束：同一字段的多个候选值优先用叶子节点的 values + operator=or，不要拆成多个同字段的 or 子节点。排除语义用外层 not 包裹，不要在 value 里写「非」「除了」。",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "query": {
+            "$$ref": "#/definitions/QueryNode",
+            "description": "搜索查询的根节点。可以是单个叶子条件，也可以是由 and/or/not 组成的复合布尔节点，支持任意层嵌套。"
+          },
+          "sort": {
+            "type": "object",
+            "minProperties": 1,
+            "additionalProperties": false,
+            "description": "排序规则，可选维度中的一种或多种组合。",
+            "properties": {
+              "rate": {
+                "type": "object",
+                "properties": {
+                  "order": {
+                    "type": "string",
+                    "enum": [
+                      "asc",
+                      "desc"
+                    ]
+                  }
+                },
+                "required": [
+                  "order"
+                ]
+              },
+              "hot": {
+                "type": "object",
+                "properties": {
+                  "order": {
+                    "type": "string",
+                    "enum": [
+                      "asc",
+                      "desc"
+                    ]
+                  }
+                },
+                "required": [
+                  "order"
+                ]
+              },
+              "new": {
+                "type": "object",
+                "properties": {
+                  "order": {
+                    "type": "string",
+                    "enum": [
+                      "asc",
+                      "desc"
+                    ]
+                  }
+                },
+                "required": [
+                  "order"
+                ]
+              },
+              "play": {
+                "type": "object",
+                "properties": {
+                  "order": {
+                    "type": "string",
+                    "enum": [
+                      "asc",
+                      "desc"
+                    ]
+                  }
+                },
+                "required": [
+                  "order"
+                ]
+              }
+            }
+          }
+        },
+        "required": [
+          "query",
+          "action",
+          "retext"
+        ],
+        "additionalProperties": false,
+        "definitions": {
+          "QueryNode": {
+            "description": "查询节点，支持两种形态：1) 布尔复合节点（and/or/not）；2) 叶子条件节点（单个字段的匹配条件）。递归结构，布尔节点的子节点仍是 QueryNode。",
+            "oneOf": [
+              {
+                "$$ref": "#/definitions/BoolNode"
+              },
+              {
+                "$$ref": "#/definitions/LeafNode"
+              }
+            ]
+          },
+          "BoolNode": {
+            "description": "布尔逻辑组合节点，支持 AND / OR / NOT 三种组合，可任意嵌套。三者互斥，一个节点只能带其中一个键。",
+            "type": "object",
+            "oneOf": [
+              {
+                "properties": {
+                  "and": {
+                    "type": "array",
+                    "minItems": 1,
+                    "uniqueItems": true,
+                    "items": {
+                      "$$ref": "#/definitions/QueryNode"
+                    },
+                    "description": "AND 逻辑：所有子节点条件必须同时满足。拼接时每个子条件用括号包裹，子条件间用 AND 连接，如 (title:战狼) AND (title:战狼2)。"
+                  }
+                },
+                "required": [
+                  "and"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "properties": {
+                  "or": {
+                    "type": "array",
+                    "minItems": 1,
+                    "uniqueItems": true,
+                    "items": {
+                      "$$ref": "#/definitions/QueryNode"
+                    },
+                    "description": "OR 逻辑：任一子节点条件满足即命中，用于「或者」「要么……要么……」。同一字段的多个候选值请改用叶子节点的 values + operator=or，不要拆成多个同字段 or 子节点。"
+                  }
+                },
+                "required": [
+                  "or"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "properties": {
+                  "not": {
+                    "$$ref": "#/definitions/QueryNode",
+                    "description": "NOT 逻辑：对单个子节点条件取反，用于「除了……以外」「不要……」。not 只接受对象，不是数组；要对多个条件同时取反，用 not 包裹 and/or 复合节点。"
+                  }
+                },
+                "required": [
+                  "not"
+                ],
+                "additionalProperties": false
+              }
+            ]
+          },
+          "LeafNode": {
+            "description": "叶子条件节点，描述对某一搜索维度的具体匹配条件。四类按 field 取值区分：开放型或半固定维度用 ExactFieldCondition，固定候选的状态维度用 StatusFieldCondition，连续区间用 RangeFieldCondition，涉及到媒资详细信息如第几部、以及起播时间使用PlaybackControlFieldCondition。",
+            "type": "object",
+            "oneOf": [
+              {
+                "$$ref": "#/definitions/ExactFieldCondition"
+              },
+              {
+                "$$ref": "#/definitions/StatusFieldCondition"
+              },
+              {
+                "$$ref": "#/definitions/RangeFieldCondition"
+              },
+              {
+                "$$ref": "#/definitions/PlaybackControlFieldCondition"
+              }
+            ]
+          },
+          "ExactFieldCondition": {
+            "description": "精确匹配条件，用于开放型或半固定取值的检索维度。value 与 values 互斥，只能出现其一；operator 仅对 values 有效，使用 value 单值时不得传 operator。",
+            "type": "object",
+            "properties": {
+              "field": {
+                "type": "string",
+                "description": "检索维度字段名。取值必须来自下列候选，不得自造；各候选的语义辨析与格式要求见其自身 description。",
+                "oneOf": [
+                  {
+                    "const": "title",
+                    "description": "媒资作品标题(开放型)。媒资作品标题(开放型)。用户想搜索\"某个具体作品\"时使用，填入的是作品本身的名字。与 role(角色) 的核心区分：title 回答\"作品叫什么\"，role 回答\"作品里有谁\"。典型取值：动画片名(小猪佩奇、汪汪队)、电影名(战狼、流浪地球)、游戏名(斗罗大陆、王者荣耀)、儿歌歌曲名(红蜻蜓)、儿歌集锦名(儿歌多多)、儿童故事名(三毛)、玩具名(陀螺、溜溜球)、玩具视频名(芭比玩具)、儿童视频名(挖掘机)、手工类型、棋类名称(象棋)、ar百科媒资(北极熊)、儿童课程类型(国学经典、启蒙教育)、少儿视频弱标签(老鼠爱大米、起风了)等"
+                  },
+                  {
+                    "const": "content_type",
+                    "description": "媒资表现形式(固定候选)。枚举：动画、卡通、动画片、动画剧、动画剧集"
+                  },
+                  {
+                    "const": "children_second_genre",
+                    "examples": [
+                      "英语",
+                      "早教",
+                      "故事",
+                      "绘本",
+                      "数学"
+                    ],
+                    "description": "蛛网标签-二级分类（半固定候选，全集见 维表）少儿内容蛛网分类体系下的较粗粒度大类标签。与 children_third_genre(三级分类) 是上下位关系——second_genre 是大类，third_genre 是其下的细分标签。上例为高频值，用户说法不在其中时按语义就近归一化到维表内取值；无法归一化时不传该字段，不要自造新值。"
+                  },
+                  {
+                    "const": "children_third_genre",
+                    "examples": [
+                      "恐龙",
+                      "搞笑",
+                      "字母",
+                      "数字",
+                      "古诗词"
+                    ],
+                    "description": "蛛网标签-三级分类(半固定候选，全集见 维表)。少儿内容蛛网分类体系下的较细粒度标签，是 children_second_genre(二级分类) 的下位细分。上例为高频值，用户说法不在其中时按语义就近归一化到维表内取值；无法归一化时不传该字段，不要自造新值。"
+                  },
+                  {
+                    "const": "training_objectives",
+                    "examples": [
+                      "识字",
+                      "音乐启蒙",
+                      "安全教育",
+                      "勇敢",
+                      "认识数字"
+                    ],
+                    "description": "少儿培养目标(半固定候选，全集见 维表)八大智能下的二级分类维度，把每个智能域拆成若干具体、可观察、可训练的行为目标，如品格习惯下的责任心/自律能力/情绪管理、人际交往下的团队协作/学会分享/秩序感、语言沟通下的倾听理解/口语表达等。上例为高频值，用户说法不在其中时按语义就近归一化到维表内取值；无法归一化时不传该字段，不要自造新值。"
+                  },
+                  {
+                    "const": "role",
+                    "description": "角色(开放型)。用户想搜索\"包含某个人物/角色的作品\"时使用，填入的是作品中的人物名而非作品名。"
+                  },
+                  {
+                    "const": "multiple_intelligences",
+                    "description": "少儿八大智能（(固定候选)。枚举：人际交往、空间想象、品格习惯、识物认知、数字推理、音乐节奏、肢体运动、语言沟通、学说话"
+                  },
+                  {
+                    "const": "country",
+                    "examples": [
+                      "内地",
+                      "台湾",
+                      "澳门",
+                      "香港",
+                      "美国"
+                    ],
+                    "description": "地区(半固定候选，全集见 维表）。如：国内(内地)、中国区域(中华、香港)、外国国家(卢森堡、苏格兰)。上例为高频值，用户说法不在其中时按语义就近归一化到维表内取值；无法归一化时不传该字段，不要自造新值。"
+                  },
+                  {
+                    "const": "company",
+                    "examples": [
+                      "优酷",
+                      "漫威",
+                      "迪士尼电影公司",
+                      "中央电视台",
+                      "尼克罗迪恩动画工作室"
+                    ],
+                    "description": "出品公司(半固定候选，全集见 维表）。上例为高频值，用户说法不在其中时按语义就近归一化到维表内取值；无法归一化时不传该字段，不要自造新值。"
+                  },
+                  {
+                    "const": "language",
+                    "examples": [
+                      "英文",
+                      "中文",
+                      "日语",
+                      "粤语",
+                      "法语"
+                    ],
+                    "description": "语言（半固定候选，全集见 维表）。如：中文、英语、日语。上例为高频值，用户说法不在其中时按语义就近归一化到维表内取值；无法归一化时不传该字段，不要自造新值。"
+                  },
+                  {
+                    "const": "gender",
+                    "examples": [
+                      "妇女",
+                      "美女",
+                      "女",
+                      "男",
+                      "男性"
+                    ],
+                    "description": "性别(半固定候选，全集见 维表）。男性、女性。上例为高频值，用户说法不在其中时按语义就近归一化到维表内取值；无法归一化时不传该字段，不要自造新值。"
+                  },
+                  {
+                    "const": "festival",
+                    "description": "节日(开放型)。按节日筛选内容时使用。festival 是节日名、也包含寒假、暑假。"
+                  },
+                  {
+                    "const": "prize",
+                    "examples": [
+                      "戛纳金棕榈奖",
+                      "奥斯卡金像奖",
+                      "柏林电影节",
+                      "白玉兰奖",
+                      "飞天奖"
+                    ],
+                    "description": "影视奖项（半固定候选，全集见 维表）。上例为高频值，用户说法不在其中时按语义就近归一化到维表内取值；无法归一化时不传该字段，不要自造新值。"
+                  }
+                ]
+              },
+              "value": {
+                "type": "string",
+                "minLength": 1,
+                "description": "单值精确匹配，拼接为 (field:value)。仅传一个候选值时使用；多个候选值请改用 values + operator。与 values 互斥。"
+              },
+              "values": {
+                "type": "array",
+                "minItems": 1,
+                "uniqueItems": true,
+                "items": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "description": "多值匹配。各值之间按 operator 连接，未传 operator 时默认 or。与 value 互斥。"
+              },
+              "operator": {
+                "type": "string",
+                "enum": [
+                  "and",
+                  "or"
+                ],
+                "default": "or",
+                "description": "values 多值间的逻辑连接。or=任一值满足即命中；and=所有值需同时满足。仅对 values 有效，使用 value 单值时不应传。"
+              }
+            },
+            "required": [
+              "field"
+            ],
+            "oneOf": [
+              {
+                "required": [
+                  "value"
+                ],
+                "not": {
+                  "required": [
+                    "operator"
+                  ]
+                }
+              },
+              {
+                "required": [
+                  "values"
+                ]
+              }
+            ],
+            "additionalProperties": false
+          },
+          "StatusFieldCondition": {
+            "description": "状态标识条件（固定候选）。用于取值可枚举的状态字段，值为字符串 \"0\" 或 \"1\"。is_fee: \"0\"=免费, \"1\"=付费。不传表示不涉及该条件。多值固定 OR 语义，故不提供 operator。",
+            "type": "object",
+            "properties": {
+              "field": {
+                "type": "string",
+                "description": "状态字段名。仅用于固定候选的状态维度，开放型取值请改用 ExactFieldCondition。",
+                "oneOf": [
+                  {
+                    "const": "is_fee",
+                    "description": "免付费标识（固定候选）。\"0\"=免费、不要会员，\"1\"=付费、要会员、vip"
+                  }
+                ]
+              },
+              "value": {
+                "type": "string",
+                "enum": [
+                  "0",
+                  "1"
+                ],
+                "description": "状态值，字符串 \"0\" 或 \"1\"；用户未提及时不传本条件。拼接时由拼接层转为整数 0/1 下发。"
+              }
+            },
+            "required": [
+              "field",
+              "value"
+            ],
+            "additionalProperties": false
+          },
+          "RangeFieldCondition": {
+            "description": "范围匹配条件。支持 age_range(年龄范围)、release_time(发布时间范围)两个范围字段，from 与 to 一律以字符串形式传递。取值格式：age_range 为非负整数年龄的数字字符串(如 \"8\"、\"12\")；release_time 为 yyyyMMdd 8 位日期字符串(如 \"20200101\")，只精确到日、不含时分秒。端点填写规则：from 与 to 必须都填；闭区间(含单点)两端均填具体值且均含端点；开放区间无界的一端填字符串 \"*\"——'以上/之后' from 填值、to 填 \"*\"(拼接为 [from TO *])；'以下/之前' from 填 \"*\"、to 填值(拼接为 [* TO to])；from 与 to 不得同时为 \"*\"。多个范围区间需要 OR/AND 组合时(如'8分以上或6分以下')，用外层 and/or 节点包裹多个 RangeFieldCondition(每个含一个同字段区间)，本条件内部不再支持多值。范围生成规则(共四类场景，先判断用户是否已给出明确范围，已给出则不做任何扩展)：1)用户已给出明确区间(如'6到12岁'、'2018年到2020年')，from/to 均填具体值(如 from:\"6\", to:\"12\")；2)用户给出单点值且无方向词(如'8岁的动画片')，from 与 to 均取该点值(如 from:\"8\", to:\"8\")；3)用户给出单点值带方向词，无界端填 \"*\"：'8岁以上'→from:\"8\", to:\"*\"；'2020年之后'→from:\"20200101\", to:\"*\"；4)用户给出年份或日期但无区间：整年(如'2020年')from 取该年 0101、to 取该年 1231(如 from:\"20200101\", to:\"20201231\")。'以上/以下/之间' 均含端点值。from / to 根层统一为 string，具体格式由下方 allOf 按 field 用 pattern 收窄；新增范围维度时在 allOf 追加分支即可，不要在根层写死单一格式。",
+            "type": "object",
+            "properties": {
+              "field": {
+                "type": "string",
+                "description": "范围搜索维度字段名。",
+                "enum": [
+                  "age_range",
+                  "release_time"
+                ]
+              },
+              "from": {
+                "type": [
+                  "string"
+                ],
+                "description": "范围起始值(格式化取值)，字符串形式。age_range 为非负整数数字字符串，release_time 为 yyyyMMdd；'以下/之前' 开放下界时填 \"*\"。"
+              },
+              "to": {
+                "type": [
+                  "string"
+                ],
+                "description": "范围结束值(格式化取值)，格式同 from；'以上/之后' 开放上界时填 \"*\"。"
+              }
+            },
+            "required": [
+              "field",
+              "from",
+              "to"
+            ],
+            "additionalProperties": false,
+            "allOf": [
+              {
+                "if": {
+                  "properties": {
+                    "field": {
+                      "const": "age_range"
+                    }
+                  },
+                  "required": [
+                    "field"
+                  ]
+                },
+                "then": {
+                  "properties": {
+                    "from": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "pattern": "^(0|[1-9][0-9])$$"
+                        },
+                        {
+                          "const": "*"
+                        }
+                      ]
+                    },
+                    "to": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "pattern": "^(0|[1-9][0-9]*)$$"
+                        },
+                        {
+                          "const": "*"
+                        }
+                      ]
+                    }
+                  }
+                }
+              },
+              {
+                "if": {
+                  "properties": {
+                    "field": {
+                      "const": "release_time"
+                    }
+                  },
+                  "required": [
+                    "field"
+                  ]
+                },
+                "then": {
+                  "properties": {
+                    "from": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "pattern": "^[0-9]{8}$$"
+                        },
+                        {
+                          "const": "*"
+                        }
+                      ]
+                    },
+                    "to": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "pattern": "^[0-9]{8}$$"
+                        },
+                        {
+                          "const": "*"
+                        }
+                      ]
+                    }
+                  }
+                }
+              }
+            ]
+          },
+          "PlaybackControlFieldCondition": {
+            "description": "媒资详细信息控制字段。使用 field/value 形式，与 title 等检索槽位保持一致；可参与 and、or、not。value 一律为数字字符串。",
+            "oneOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "field": {
+                    "const": "series",
+                    "description": "剧集部数或季数。"
+                  },
+                  "value": {
+                    "type": "string",
+                    "pattern": "^[1-9][0-9]$$",
+                    "description": "第几部或第几季的序号，从 1 开始，数字字符串形式。例如第二季传 \"2\"。拼接时由拼接层转为整数下发。"
+                  }
+                },
+                "required": [
+                  "field",
+                  "value"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "field": {
+                    "const": "video_index",
+                    "description": "剧集集数或综艺期数。"
+                  },
+                  "value": {
+                    "type": "string",
+                    "pattern": "^[1-9][0-9]*$$",
+                    "description": "第几集或第几期的序号(格式化取值)，从 1 开始，数字字符串形式。例如第三集传 \"3\"。拼接时由拼接层转为整数下发。"
+                  }
+                },
+                "required": [
+                  "field",
+                  "value"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "field": {
+                    "const": "voice_start_pos",
+                    "description": "起播时间位置。"
+                  },
+                  "value": {
+                    "type": "string",
+                    "pattern": "^(0|[1-9][0-9]*)$",
+                    "description": "起播位置(格式化取值)，单位为秒，非负整数字符串形式。例如第 10 分钟传 \"600\"，3 分 09 秒传 \"189\""
+                  }
+                },
+                "required": [
+                  "field",
+                  "value"
+                ],
+                "additionalProperties": false
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "tool_name": "educ_history",
+      "description": "少儿历史记录工具(educ_history)。查询用户的少儿历史观看记录，支持按时间范围（精确到秒）筛选，返回符合条件的历史记录。\\n适用场景：用户表达了查看少儿历史记录的意图时使用，如\\\"我看过的动画\\\"、\\\"上周看过什么\\\"、\\\"最近一个月的观看记录\\\"、\\\"2024年3月给宝宝放过哪些内容\\\"、\\\"昨天晚上给宝宝看的动画片\\\"。\\n不适用场景：用户语料包含明显清晰的搜索槽位切非相似推荐场景使用educ_search或educ_search_all；描述性等方式表达影视查找意图的场景，包括剧情描述、台词描述、复杂组合条件等改用educ_fuzzy_search；当用户基于请求查询与某媒资类型相似、相关内容时使用educ_relate_recommend。\\n时间解析：time 按 Asia/Shanghai（北京时间）解析，格式为“yyyy-MM-dd HH:mm:ss TO yyyy-MM-dd HH:mm:ss”，起止时间均包含。月：支持本月、上个月、上上个月，范围为对应月份第一天00:00:00至最后一天23:59:59。周：一周从周一开始，支持本周、这周、上周、上上周，以及本周一至本周日、上周一至上周日，范围为对应日期或周的起止时间。日：支持今天、昨天、前天、大前天、本月第一天、本月最后一天、上个月第一天、上个月最后一天。未指定时段时，日期范围为当天00:00:00至23:59:59。时段：凌晨为01:00:00至04:59:59；早、早上、清晨为05:00:00至07:59:59；上午为08:00:00至10:59:59；中、中午、正午为11:00:00至12:59:59；下午为13:00:00至16:59:59；傍晚、黄昏为17:00:00至18:59:59；晚上为19:00:00至22:59:59；深夜、子夜为当日23:00:00至次日00:59:59。只出现时段词但未指定日期时，按当天解析。\\n结果使用：time为解析出的单个连续精确时间范围，根据该条件查询并返回用户的少儿历史观看记录；未传字段表示不做该维度限制。",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "time": {
+            "type": "string",
+            "description": "精确时间范围。格式为“yyyy-MM-dd HH:mm:ss TO yyyy-MM-dd HH:mm:ss”，例如“2026-07-12 18:00:00 TO 2026-07-12 23:59:59”。按北京时间解析，起止时间均包含；不传时查询全部历史记录。仅支持单个连续时间范围。",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2} \\d{2}:\\d{2}:\\d{2} TO \\d{4}-\\d{2}-\\d{2} \\d{2}:\\d{2}:\\d{2}$"
+          }
+        },
+        "required": []
+      }
+    }
+  ]
+}

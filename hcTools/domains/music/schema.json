@@ -1,0 +1,1244 @@
+{
+  "domain": "音乐",
+  "domain_key": "music",
+  "tools": [
+    {
+      "tool_name": "music_song_search",
+      "description": "酷狗音乐歌曲搜索工具(music_song_search)。当用户表达搜索歌曲、找歌、点歌、听某首歌的意图时触发。\\n检索模式：扁平结构化槽位检索，提取到对应信息则携带对应槽位，未提取到则不包含该key。除 retext 外所有业务槽位均为数组多值：同一槽位内多个取值为维度内 AND，不同槽位之间亦为 AND；OR 意图(如\\\"周杰伦或者林俊杰的歌\\\")或 NOT 意图(如\\\"除了周杰伦以外的歌\\\")酷狗不支持。\\n固定候选字段：version/gender/tag/toplist 取值必须归一化到枚举，无法归一时不传该维度。 \\n不适用场景——出现以下任一情况不要调用本工具：1) 用户意图不是听歌搜歌（如想看MV、看音乐视频）；2) OR 意图(如\\\"周杰伦或者林俊杰的歌\\\")或 NOT 意图(如\\\"除了周杰伦以外的歌\\\")，酷狗仅支持 AND；3) 用户强调地区/语言/年代等本工具未接入的维度。4）当用户的问句中无有效槽位 5) 用户问句中包含合作场景 \\n禁用场景：用户想\\\"唱/K歌/找伴奏点唱\\\"时走 music_ksong_search，禁止调用本工具。",
+      "parameters": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "name": "music_song_search",
+        "description": "酷狗音乐歌曲搜索工具(music_song_search)。当用户表达搜索歌曲、找歌、点歌、听某首歌的意图时触发。\n检索模式：扁平结构化槽位检索，提取到对应信息则携带对应槽位，未提取到则不包含该key。除 retext 外所有业务槽位均为数组多值：同一槽位内多个取值为维度内 AND，不同槽位之间亦为 AND；OR 意图(如\"周杰伦或者林俊杰的歌\")或 NOT 意图(如\"除了周杰伦以外的歌\")酷狗不支持。\n固定候选字段：version/gender/tag/toplist 取值必须归一化到枚举，无法归一时不传该维度。 \n不适用场景——出现以下任一情况不要调用本工具：1) 用户意图不是听歌搜歌（如想看MV、看音乐视频）；2) OR 意图(如\"周杰伦或者林俊杰的歌\")或 NOT 意图(如\"除了周杰伦以外的歌\")，酷狗仅支持 AND；3) 用户强调地区/语言/年代等本工具未接入的维度。4）当用户的问句中无有效槽位 5) 用户问句中包含合作场景 \n禁用场景：用户想\"唱/K歌/找伴奏点唱\"时走 music_ksong_search，禁止调用本工具。",
+        "type": "object",
+        "properties": {
+          "retext": {
+            "type": "string",
+            "minLength": 1,
+            "description": "改写后的语句，本身不参与槽位检索。"
+          },
+          "song": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            },
+            "uniqueItems": true,
+            "description": "歌曲名，开放型，多值，维度内 AND。数组传入，每个元素为一首歌曲标题；多个元素表示同时满足。与 ip(影视IP) 不同——song 是歌曲本身的名字，ip 是歌曲所属的影视/游戏/动漫作品名，\"甄嬛传的主题曲\"中\"甄嬛传\"是 ip 而非 song。与 album(专辑) 不同——歌曲名与专辑同名时按用户表述的量词判断(\"一首\"→song，\"专辑\"→album)。与 lyrics(歌词) 不同——song 是歌曲标题，lyrics 是歌曲内部唱词。典型取值：晴天、孤勇者、天下、青花瓷。"
+          },
+          "singer": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            },
+            "uniqueItems": true,
+            "description": "歌手名，开放型，多值，维度内 AND。演唱者、乐队或组合的名称，数组传入。多值表示多位歌手共同参与(合唱/合作/共同演唱)，维度内 AND；\"周杰伦或林俊杰\"这类任选其一的 OR 意图不要填多值。与 lyricist/composer 不同——singer 是演唱者，lyricist/composer 是词曲创作者，\"林夕写的歌\"应填 lyricist 而非 singer。与 gender(性别) 不同——singer 是具体名称，gender 是无具体名称时的性别/组合形态限定。典型取值：周杰伦、五月天、凤凰传奇、邓紫棋。"
+          },
+          "album": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            },
+            "uniqueItems": true,
+            "description": "专辑名，开放型，多值，维度内 AND。歌曲所属的专辑或唱片名称，数组传入；多个元素表示同时命中多张专辑内的歌。适用场景如\"放叶惠美专辑里的歌\"。典型取值：叶惠美、范特西、十一月的萧邦。"
+          },
+          "lyricist": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            },
+            "uniqueItems": true,
+            "description": "作词人，开放型，多值，维度内 AND。歌词创作者姓名，数组传入。与 composer(作曲人) 不同——lyricist 对应\"作词/填词/写词\"，composer 对应\"作曲/谱曲/写曲\"；用户只说\"某人写的歌\"且无法区分词曲时，优先填 lyricist。典型取值：林夕、方文山、黄霑。"
+          },
+          "composer": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            },
+            "uniqueItems": true,
+            "description": "作曲人，开放型，多值，维度内 AND。旋律创作者姓名，数组传入。与 lyricist(作词人) 的区分见 lyricist 说明。典型取值：李宗盛、久石让、周杰伦。"
+          },
+          "version": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "live版",
+                "免费版",
+                "原唱"
+              ]
+            },
+            "minItems": 1,
+            "uniqueItems": true,
+            "description": "歌曲版本，固定候选，多值，维度内 AND。歌曲的呈现形态或音轨版本，数组传入；每个元素必须归一化为枚举之一：dj版、remix版、live版、纯音乐、男声版、女声版、抖音版、伴奏版、铃声版、免费版、片段版、广场舞、翻唱、原唱。归一化示例：\"现场版/演唱会版\"→live版、\"卡拉OK/去人声\"→伴奏版、\"电音\"→remix版。与 gender(性别) 不同——\"男声版/女声版\"描述同一首歌的翻唱音轨版本，属 version；\"男歌手唱的歌\"描述演唱者属性，属 gender。无法归一化时不传该维度。"
+          },
+          "gender": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "女",
+                "男",
+                "组合",
+                "女团"
+              ]
+            },
+            "minItems": 1,
+            "uniqueItems": true,
+            "description": "歌手性别/组合形态，固定候选，多值，维度内 AND。无具体歌手名、仅按演唱者性别或组合形态筛选时使用，数组传入；每个元素必须归一化为枚举之一：女、男、组合、女团。归一化示例：\"女生/女声/女的\"→女，\"男生/男的\"→男，\"乐队/团体/男团\"→组合，\"女子组合\"→女团。用户未提及或男女均可时不传该维度。与 singer(歌手名) 不同——singer 是具体名称，gender 是属性限定；与 version 中\"男声版/女声版\"的区分见 version 说明。适用场景如\"放几首女歌手的歌\"、\"来点女团的歌\"。"
+          },
+          "ip": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            },
+            "uniqueItems": true,
+            "description": "影视IP，开放型，多值，维度内 AND。歌曲所关联的影视剧、动漫、游戏等作品名称，数组传入。适用场景如\"甄嬛传的主题曲\"、\"想听哪吒里的插曲\"。与 song(歌曲名) 的区分见 song 说明。典型取值：甄嬛传、哪吒、原神、灌篮高手。"
+          },
+          "tag": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": []
+            },
+            "minItems": 1,
+            "uniqueItems": true,
+            "description": "音乐标签，固定候选封闭枚举，多值，维度内 AND。覆盖曲风、情绪、场景、主题等分类维度，酷狗「语搜标签」标签枚举表将其细分为 8 个子类：流派(流行/摇滚/民谣/爵士/古典/嘻哈…)、场景(运动/KTV/咖啡厅/婚礼现场/哄你入睡…)、心情(动感节拍/安静舒缓/抒情伤怀/活泼欢乐…)、主题(爱情/失恋/经典/抖音/翻唱…)、乐器(钢琴/古筝/萨克斯/二胡…)、节日(圣诞节/新春佳节…，已并入场景枚举)、语言(粤语/日语/法语…)、IP(综艺/电视剧/电影…)。数组传入，每个元素必须取自枚举(共374个)，常见表述需归一后再传入：如\"伤感\"→抒情伤怀、\"欢快\"→活泼欢乐、\"说唱\"→嘻哈、\"开车\"→在路上、\"睡前\"→哄你入睡、\"春节\"→新春佳节、\"婚礼\"→婚礼现场。无法归一到枚举时不传该维度，不要硬填近似值。多个标签用数组元素传入，维度内逻辑为 AND(所有标签均需满足)。与 version(版本) 不同——tag 描述\"歌曲属于什么风格/情绪\"，version 描述\"这首歌是哪个音轨版本\"。"
+          },
+          "lyrics": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            },
+            "minItems": 1,
+            "uniqueItems": true,
+            "description": "歌词片段，开放型，多值，维度内 AND。用户复述的歌词内容，数组传入；多个片段为维度内 AND，命中后由酷狗侧完成歌词匹配。可与其他所有业务槽位自由 AND 组合。与 song(歌曲名) 不同——song 是歌曲标题，lyrics 是歌曲内部唱词。适用场景如\"有句歌词是天青色等烟雨，周杰伦唱的歌\"。"
+          },
+          "toplist": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": []
+            },
+            "minItems": 1,
+            "uniqueItems": true,
+            "description": "榜单名，固定候选，多值，维度内 AND。酷狗侧正式支持的榜单实体，数组传入；每个元素必须取自枚举(共30个)，多个榜单为维度内 AND，常见别名需归一：如\"蒙面唱将猜猜猜第三季榜\"归一为\"蒙面唱猜猜猜第三季榜\"。不在枚举内的榜单不要传 toplist。可与其他所有业务槽位自由 AND 组合。与 tag(标签) 不同——toplist 是有排序含义的榜单实体，tag 是曲风/情绪等分类标签。适用场景如\"酷狗飙升榜里周杰伦的歌\"。"
+          }
+        },
+        "required": [
+          "retext"
+        ],
+        "anyOf": [
+          {
+            "required": [
+              "song"
+            ],
+            "properties": {
+              "song": {
+                "minItems": 1
+              }
+            }
+          },
+          {
+            "required": [
+              "singer"
+            ],
+            "properties": {
+              "singer": {
+                "minItems": 1
+              }
+            }
+          },
+          {
+            "required": [
+              "album"
+            ],
+            "properties": {
+              "album": {
+                "minItems": 1
+              }
+            }
+          },
+          {
+            "required": [
+              "lyricist"
+            ],
+            "properties": {
+              "lyricist": {
+                "minItems": 1
+              }
+            }
+          },
+          {
+            "required": [
+              "composer"
+            ],
+            "properties": {
+              "composer": {
+                "minItems": 1
+              }
+            }
+          },
+          {
+            "required": [
+              "version"
+            ],
+            "properties": {
+              "version": {
+                "minItems": 1
+              }
+            }
+          },
+          {
+            "required": [
+              "gender"
+            ],
+            "properties": {
+              "gender": {
+                "minItems": 1
+              }
+            }
+          },
+          {
+            "required": [
+              "ip"
+            ],
+            "properties": {
+              "ip": {
+                "minItems": 1
+              }
+            }
+          },
+          {
+            "required": [
+              "tag"
+            ],
+            "properties": {
+              "tag": {
+                "minItems": 1
+              }
+            }
+          },
+          {
+            "required": [
+              "lyrics"
+            ],
+            "properties": {
+              "lyrics": {
+                "minItems": 1
+              }
+            }
+          },
+          {
+            "required": [
+              "toplist"
+            ],
+            "properties": {
+              "toplist": {
+                "minItems": 1
+              }
+            }
+          }
+        ],
+        "examples": [
+          {
+            "scenario": "正例1：携带业务槽位，歌曲+歌手组合检索",
+            "retext": "我想听周杰伦的晴天",
+            "singer": [
+              "周杰伦"
+            ],
+            "song": [
+              "晴天"
+            ]
+          },
+          {
+            "scenario": "正例2：携带业务槽位，榜单+歌手+标签多槽位组合检索",
+            "retext": "酷狗飙升榜里周杰伦抒情伤怀的歌",
+            "toplist": [
+              "酷狗飙升榜"
+            ],
+            "singer": [
+              "周杰伦"
+            ],
+            "tag": [
+              "抒情伤怀"
+            ]
+          },
+          {
+            "scenario": "正例3：携带业务槽位，歌词片段+歌手+版本组合检索",
+            "retext": "找周杰伦唱的，含有天青色等烟雨的live版歌曲",
+            "lyrics": [
+              "天青色等烟雨"
+            ],
+            "singer": [
+              "周杰伦"
+            ],
+            "version": [
+              "live版"
+            ]
+          },
+          {
+            "scenario": "反例：用户意图不是听歌搜歌，不应该调用本工具",
+            "retext": "我想看mv"
+          },
+          {
+            "scenario": "反例：用户意图不是听歌搜歌，不应该调用本工具",
+            "retext": "随便来点歌吧"
+          }
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "tool_name": "music_song_semantic_search",
+      "description": "酷狗音乐语义歌曲搜索工具(music_song_semantic_search)。当用户表达想听歌曲，但**提取不出任何有效业务槽位**，需要走慢链路改写时，调用该工具，传入结构仅有retext，典型例子:今天加班到很晚放点提神的歌、今天要干一天的活放点适合的歌、适合今天天气听的歌。当用户询问xxx和xxx合作的歌曲这种带有”合作“词语的语句调用该工具，典型例子:周杰伦和方文山合作的歌曲。 \\n不适用场景——出现以下任一情况不要调用本工具：1) 用户意图不是听歌搜歌（如想看MV、看音乐视频）；2) 用户的问句中包含明确的歌曲名、歌手名、专辑名等信息时，不走该工具 \\n禁用场景：用户想\\\"唱/K歌/找伴奏点唱\\\"时走 music_ksong_search，禁止调用本工具。",
+      "parameters": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "name": "music_song_semantic_search",
+        "description": "酷狗音乐语义歌曲搜索工具(music_song_semantic_search)。当用户表达想听歌曲，但**提取不出任何有效业务槽位**，需要走慢链路改写时，调用该工具，传入结构仅有retext，典型例子:今天加班到很晚放点提神的歌、今天要干一天的活放点适合的歌、适合今天天气听的歌。当用户询问xxx和xxx合作的歌曲这种带有”合作“词语的语句调用该工具，典型例子:周杰伦和方文山合作的歌曲。 \n不适用场景——出现以下任一情况不要调用本工具：1) 用户意图不是听歌搜歌（如想看MV、看音乐视频）；2) 用户的问句中包含明确的歌曲名、歌手名、专辑名等信息时，不走该工具 \n禁用场景：用户想\"唱/K歌/找伴奏点唱\"时走 music_ksong_search，禁止调用本工具。",
+        "type": "object",
+        "properties": {
+          "retext": {
+            "type": "string",
+            "minLength": 1,
+            "description": "改写后的语句，使用语句进行语义搜索。"
+          }
+        },
+        "required": [
+          "retext"
+        ],
+        "examples": [
+          {
+            "scenario": "正例1：无有效槽位场景",
+            "retext": "今天要干一天的活放点适合的歌"
+          },
+          {
+            "scenario": "正例2：合作场景",
+            "retext": "方文山和林俊杰合作的歌曲"
+          },
+          {
+            "scenario": "正例3：需要改写场景",
+            "retext": "适合今天天气听的歌"
+          },
+          {
+            "scenario": "反例1：用户问句明确包含歌曲信息",
+            "retext": "来首周杰伦的青花瓷"
+          }
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "tool_name": "music_song_mv_search",
+      "description": "酷狗音乐MV搜索工具(music_song_mv_search)。当用户表达搜索MV、找MV、看某首歌的MV的意图时触发。\\n检索模式：扁平结构化槽位检索，提取到对应信息则携带对应槽位，未提取到则不包含该key。除 retext 外所有业务槽位均为数组多值：同一槽位内多个取值为维度内 AND，不同槽位之间亦为 AND；OR 意图(如\\\"周杰伦或者林俊杰的歌\\\")或 NOT 意图(如\\\"除了周杰伦以外的歌\\\")酷狗不支持。\\n固定候选字段：version/gender/tag/toplist 取值必须归一化到枚举，无法归一时不传该维度。\\n不适用场景——出现以下任一情况不要调用本工具：1) 提取不出任何明确单一槽位(如\\\"心情不好了来点歌\\\"等情绪/场景/氛围/节日描述)；2) OR 意图(如\\\"周杰伦或者林俊杰的歌\\\")或 NOT 意图(如\\\"除了周杰伦以外的歌\\\")，酷狗仅支持 AND；3) tag 取值不在酷狗枚举表内；4) 用户强调地区/语言/年代等本工具未接入的维度。\\n禁用场景：用户想\\\"唱/K歌/找伴奏点唱\\\"时走 music_ksong_search，禁止调用本工具",
+      "parameters": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "name": "music_song_mv_search",
+        "description": "酷狗音乐MV搜索工具(music_song_mv_search)。当用户表达搜索MV、找MV、看某首歌的MV的意图时触发。\n检索模式：扁平结构化槽位检索，提取到对应信息则携带对应槽位，未提取到则不包含该key。除 retext 外所有业务槽位均为数组多值：同一槽位内多个取值为维度内 AND，不同槽位之间亦为 AND；OR 意图(如\"周杰伦或者林俊杰的歌\")或 NOT 意图(如\"除了周杰伦以外的歌\")酷狗不支持。\n固定候选字段：version/gender/tag/toplist 取值必须归一化到枚举，无法归一时不传该维度。\n不适用场景——出现以下任一情况不要调用本工具：1) 提取不出任何明确单一槽位(如\"心情不好了来点歌\"等情绪/场景/氛围/节日描述)；2) OR 意图(如\"周杰伦或者林俊杰的歌\")或 NOT 意图(如\"除了周杰伦以外的歌\")，酷狗仅支持 AND；3) tag 取值不在酷狗枚举表内；4) 用户强调地区/语言/年代等本工具未接入的维度。\n禁用场景：用户想\"唱/K歌/找伴奏点唱\"时走 music_ksong_search，禁止调用本工具。",
+        "type": "object",
+        "properties": {
+          "retext": {
+            "type": "string",
+            "minLength": 1,
+            "description": "改写后的语句，本身不参与槽位检索。"
+          },
+          "song": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            },
+            "uniqueItems": true,
+            "description": "歌曲名，开放型，多值，维度内 AND。数组传入，每个元素为一首歌曲标题；多个元素表示同时满足。与 ip(影视IP) 不同——song 是歌曲本身的名字，ip 是歌曲所属的影视/游戏/动漫作品名，\"甄嬛传的主题曲\"中\"甄嬛传\"是 ip 而非 song。与 album(专辑) 不同——歌曲名与专辑同名时按用户表述的量词判断(\"一首\"→song，\"专辑\"→album)。与 lyrics(歌词) 不同——song 是歌曲标题，lyrics 是歌曲内部唱词。典型取值：晴天、孤勇者、天下、青花瓷。"
+          },
+          "singer": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            },
+            "uniqueItems": true,
+            "description": "歌手名，开放型，多值，维度内 AND。演唱者、乐队或组合的名称，数组传入。多值表示多位歌手共同参与(合唱/合作/共同演唱)，维度内 AND；\"周杰伦或林俊杰\"这类任选其一的 OR 意图不要填多值。与 lyricist/composer 不同——singer 是演唱者，lyricist/composer 是词曲创作者，\"林夕写的歌\"应填 lyricist 而非 singer。与 gender(性别) 不同——singer 是具体名称，gender 是无具体名称时的性别/组合形态限定。典型取值：周杰伦、五月天、凤凰传奇、邓紫棋。"
+          },
+          "album": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            },
+            "uniqueItems": true,
+            "description": "专辑名，开放型，多值，维度内 AND。歌曲所属的专辑或唱片名称，数组传入；多个元素表示同时命中多张专辑内的歌。适用场景如\"放叶惠美专辑里的歌\"。典型取值：叶惠美、范特西、十一月的萧邦。"
+          },
+          "lyricist": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            },
+            "uniqueItems": true,
+            "description": "作词人，开放型，多值，维度内 AND。歌词创作者姓名，数组传入。与 composer(作曲人) 不同——lyricist 对应\"作词/填词/写词\"，composer 对应\"作曲/谱曲/写曲\"；用户只说\"某人写的歌\"且无法区分词曲时，优先填 lyricist。典型取值：林夕、方文山、黄霑。"
+          },
+          "composer": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            },
+            "uniqueItems": true,
+            "description": "作曲人，开放型，多值，维度内 AND。旋律创作者姓名，数组传入。与 lyricist(作词人) 的区分见 lyricist 说明。典型取值：李宗盛、久石让、周杰伦。"
+          },
+          "version": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "live版",
+                "免费版",
+                "原唱"
+              ]
+            },
+            "minItems": 1,
+            "uniqueItems": true,
+            "description": "歌曲版本，固定候选，多值，维度内 AND。歌曲的呈现形态或音轨版本，数组传入；每个元素必须归一化为枚举之一：dj版、remix版、live版、纯音乐、男声版、女声版、抖音版、伴奏版、铃声版、免费版、片段版、广场舞、翻唱、原唱。归一化示例：\"现场版/演唱会版\"→live版、\"卡拉OK/去人声\"→伴奏版、\"电音\"→remix版。与 gender(性别) 不同——\"男声版/女声版\"描述同一首歌的翻唱音轨版本，属 version；\"男歌手唱的歌\"描述演唱者属性，属 gender。无法归一化时不传该维度。"
+          },
+          "gender": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "女",
+                "男",
+                "组合",
+                "女团"
+              ]
+            },
+            "minItems": 1,
+            "uniqueItems": true,
+            "description": "歌手性别/组合形态，固定候选，多值，维度内 AND。无具体歌手名、仅按演唱者性别或组合形态筛选时使用，数组传入；每个元素必须归一化为枚举之一：女、男、组合、女团。归一化示例：\"女生/女声/女的\"→女，\"男生/男的\"→男，\"乐队/团体/男团\"→组合，\"女子组合\"→女团。用户未提及或男女均可时不传该维度。与 singer(歌手名) 不同——singer 是具体名称，gender 是属性限定；与 version 中\"男声版/女声版\"的区分见 version 说明。适用场景如\"放几首女歌手的歌\"、\"来点女团的歌\"。"
+          },
+          "ip": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            },
+            "uniqueItems": true,
+            "description": "影视IP，开放型，多值，维度内 AND。歌曲所关联的影视剧、动漫、游戏等作品名称，数组传入。适用场景如\"甄嬛传的主题曲\"、\"想听哪吒里的插曲\"。与 song(歌曲名) 的区分见 song 说明。典型取值：甄嬛传、哪吒、原神、灌篮高手。"
+          },
+          "tag": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": []
+            },
+            "minItems": 1,
+            "uniqueItems": true,
+            "description": "音乐标签，固定候选封闭枚举，多值，维度内 AND。覆盖曲风、情绪、场景、主题等分类维度，酷狗「语搜标签」标签枚举表将其细分为 8 个子类：流派(流行/摇滚/民谣/爵士/古典/嘻哈…)、场景(运动/KTV/咖啡厅/婚礼现场/哄你入睡…)、心情(动感节拍/安静舒缓/抒情伤怀/活泼欢乐…)、主题(爱情/失恋/经典/抖音/翻唱…)、乐器(钢琴/古筝/萨克斯/二胡…)、节日(圣诞节/新春佳节…，已并入场景枚举)、语言(粤语/日语/法语…)、IP(综艺/电视剧/电影…)。数组传入，每个元素必须取自枚举(共374个)，常见表述需归一后再传入：如\"伤感\"→抒情伤怀、\"欢快\"→活泼欢乐、\"说唱\"→嘻哈、\"开车\"→在路上、\"睡前\"→哄你入睡、\"春节\"→新春佳节、\"婚礼\"→婚礼现场。无法归一到枚举时不传该维度，不要硬填近似值。多个标签用数组元素传入，维度内逻辑为 AND(所有标签均需满足)。与 version(版本) 不同——tag 描述\"歌曲属于什么风格/情绪\"，version 描述\"这首歌是哪个音轨版本\"。"
+          },
+          "lyrics": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            },
+            "minItems": 1,
+            "uniqueItems": true,
+            "description": "歌词片段，开放型，多值，维度内 AND。用户复述的歌词内容，数组传入；多个片段为维度内 AND，命中后由酷狗侧完成歌词匹配。可与其他所有业务槽位自由 AND 组合。与 song(歌曲名) 不同——song 是歌曲标题，lyrics 是歌曲内部唱词。适用场景如\"有句歌词是天青色等烟雨，周杰伦唱的歌\"。"
+          },
+          "toplist": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": []
+            },
+            "minItems": 1,
+            "uniqueItems": true,
+            "description": "榜单名，固定候选，多值，维度内 AND。酷狗侧正式支持的榜单实体，数组传入；每个元素必须取自枚举(共30个)，多个榜单为维度内 AND，常见别名需归一：如\"蒙面唱将猜猜猜第三季榜\"归一为\"蒙面唱猜猜猜第三季榜\"。不在枚举内的榜单不要传 toplist。可与其他所有业务槽位自由 AND 组合。与 tag(标签) 不同——toplist 是有排序含义的榜单实体，tag 是曲风/情绪等分类标签。适用场景如\"酷狗飙升榜里周杰伦的歌\"。"
+          }
+        },
+        "required": [
+          "retext"
+        ],
+        "anyOf": [
+          {
+            "required": [
+              "song"
+            ],
+            "properties": {
+              "song": {
+                "minItems": 1
+              }
+            }
+          },
+          {
+            "required": [
+              "singer"
+            ],
+            "properties": {
+              "singer": {
+                "minItems": 1
+              }
+            }
+          },
+          {
+            "required": [
+              "album"
+            ],
+            "properties": {
+              "album": {
+                "minItems": 1
+              }
+            }
+          },
+          {
+            "required": [
+              "lyricist"
+            ],
+            "properties": {
+              "lyricist": {
+                "minItems": 1
+              }
+            }
+          },
+          {
+            "required": [
+              "composer"
+            ],
+            "properties": {
+              "composer": {
+                "minItems": 1
+              }
+            }
+          },
+          {
+            "required": [
+              "version"
+            ],
+            "properties": {
+              "version": {
+                "minItems": 1
+              }
+            }
+          },
+          {
+            "required": [
+              "gender"
+            ],
+            "properties": {
+              "gender": {
+                "minItems": 1
+              }
+            }
+          },
+          {
+            "required": [
+              "ip"
+            ],
+            "properties": {
+              "ip": {
+                "minItems": 1
+              }
+            }
+          },
+          {
+            "required": [
+              "tag"
+            ],
+            "properties": {
+              "tag": {
+                "minItems": 1
+              }
+            }
+          },
+          {
+            "required": [
+              "lyrics"
+            ],
+            "properties": {
+              "lyrics": {
+                "minItems": 1
+              }
+            }
+          },
+          {
+            "required": [
+              "toplist"
+            ],
+            "properties": {
+              "toplist": {
+                "minItems": 1
+              }
+            }
+          }
+        ],
+        "additionalProperties": false,
+        "examples": [
+          {
+            "scenario": "结构化检索 AND 组合(歌手 + 歌曲)",
+            "retext": "我想看周杰伦的晴天MV",
+            "singer": [
+              "周杰伦"
+            ],
+            "song": [
+              "晴天"
+            ]
+          },
+          {
+            "scenario": "结构化检索-A类单槽位，性别归一化",
+            "retext": "来点女团的MV",
+            "gender": [
+              "女团"
+            ]
+          },
+          {
+            "scenario": "lyrics ",
+            "retext": "我想看歌词是天青色等烟雨的MV",
+            "lyrics": [
+              "天青色等烟雨"
+            ]
+          },
+          {
+            "scenario": "结构化检索-排他类 toplist 单独使用(取值须在30个榜单枚举内)",
+            "retext": "放一下酷狗飙升榜的歌",
+            "toplist": [
+              "酷狗飙升榜"
+            ]
+          },
+          {
+            "scenario": "结构化检索-A类 singer 多值(合唱/合作，维度内 AND)",
+            "retext": "放一下周杰伦和方文山合作的那首歌",
+            "singer": [
+              "周杰伦",
+              "方文山"
+            ]
+          },
+          {
+            "scenario": "反例：无法提取任何业务槽位，纯情绪描述，不调用工具",
+            "retext": "心情不好来点歌"
+          },
+          {
+            "scenario": "反例：不看MV只听歌",
+            "retext": "随便放首歌听"
+          }
+        ]
+      }
+    },
+    {
+      "tool_name": "music_ksong_search",
+      "description": "K歌搜索工具(music_ksong_search)。当用户表达在 K歌/全民K歌/酷狗K歌 中搜索歌曲、找伴奏、点唱的意图时触发。\\n检索模式：与 music_song_search 保持一致的扁平结构化槽位检索。除 retext 外所有业务槽位均为数组多值：同一槽位内多个取值为维度内 AND，不同槽位之间亦为 AND；OR 意图(如\\\"周杰伦或者林俊杰的歌\\\")或 NOT 意图(如\\\"除了周杰伦以外的歌\\\")不支持。\\n空值规则：song/singer/album/lyricist/composer/ip 允许传空数组 [](抽取不到明确值时占位)；其余业务槽位(version/gender/tag/lyrics/toplist)须非空。无论哪些槽位为空，请求内至少要有一个业务槽位非空。\\n槽位分类：A类(song/singer/album/lyricist/composer/version/gender/ip，可任意 AND 组合)、B类 tag(半开放标签，数组多值，维度内 AND)、排他类 lyrics(歌词片段)/toplist(榜单，仅单独使用，不可与其他槽位组合，schema 已约束)。\\n固定候选字段：version/gender/toplist 取值必须归一化到枚举，无法归一时不传该维度。\\n不适用场景——出现以下任一情况不要调用本工具：1) 提取不出任何明确单一槽位(如\\\"心情不好了来点歌\\\"等情绪/场景/氛围/节日描述)；2) OR 意图或 NOT 意图，仅支持 AND；3) tag 取值不在酷狗枚举表内；4) 用户强调地区/语言/年代等本工具未接入的维度。\\n禁用场景：用户仅想\\\"听/放/播放\\\"歌曲(走 music_song_search)而非\\\"唱/K歌/找伴奏点唱\\\"时，禁止调用本工具。",
+      "parameters": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "name": "music_ksong_search",
+        "description": "K歌搜索工具(music_ksong_search)。当用户表达在 K歌/全民K歌/酷狗K歌 中搜索歌曲、找伴奏、点唱的意图时触发。\n检索模式：扁平结构化槽位检索，提取到对应信息则携带对应槽位，未提取到则不包含该key。除 retext 外所有业务槽位均为数组多值：同一槽位内多个取值为维度内 AND，不同槽位之间亦为 AND；OR 意图(如\"周杰伦或者林俊杰的歌\")或 NOT 意图(如\"除了周杰伦以外的歌\")酷狗不支持。\n固定候选字段：version/gender/tag/toplist 取值必须归一化到枚举，无法归一时不传该维度。\n不适用场景——出现以下任一情况不要调用本工具：1) 提取不出任何明确单一槽位(如\"心情不好了来点歌\"等情绪/场景/氛围/节日描述)；2) OR 意图(如\"周杰伦或者林俊杰的歌\")或 NOT 意图(如\"除了周杰伦以外的歌\")，酷狗仅支持 AND；3) tag 取值不在酷狗枚举表内；4) 用户强调地区/语言/年代等本工具未接入的维度。\n禁用场景：用户仅想\"听/放/播放\"歌曲(走 music_song_search)而非\"唱/K歌/找伴奏点唱\"时，禁止调用本工具。",
+        "type": "object",
+        "properties": {
+          "retext": {
+            "type": "string",
+            "minLength": 1,
+            "description": "改写后的语句，本身不参与槽位检索。"
+          },
+          "song": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            },
+            "uniqueItems": true,
+            "description": "歌曲名，开放型，多值，维度内 AND。数组传入，每个元素为一首歌曲标题；多个元素表示同时满足。与 ip(影视IP) 不同——song 是歌曲本身的名字，ip 是歌曲所属的影视/游戏/动漫作品名，\"甄嬛传的主题曲\"中\"甄嬛传\"是 ip 而非 song。与 album(专辑) 不同——歌曲名与专辑同名时按用户表述的量词判断(\"一首\"→song，\"专辑\"→album)。与 lyrics(歌词) 不同——song 是歌曲标题，lyrics 是歌曲内部唱词。典型取值：晴天、孤勇者、天下、青花瓷。"
+          },
+          "singer": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            },
+            "uniqueItems": true,
+            "description": "歌手名，开放型，多值，维度内 AND。演唱者、乐队或组合的名称，数组传入。多值表示多位歌手共同参与(合唱/合作/共同演唱)，维度内 AND；\"周杰伦或林俊杰\"这类任选其一的 OR 意图不要填多值。与 lyricist/composer 不同——singer 是演唱者，lyricist/composer 是词曲创作者，\"林夕写的歌\"应填 lyricist 而非 singer。与 gender(性别) 不同——singer 是具体名称，gender 是无具体名称时的性别/组合形态限定。典型取值：周杰伦、五月天、凤凰传奇、邓紫棋。"
+          },
+          "album": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            },
+            "uniqueItems": true,
+            "description": "专辑名，开放型，多值，维度内 AND。歌曲所属的专辑或唱片名称，数组传入；多个元素表示同时命中多张专辑内的歌。适用场景如\"放叶惠美专辑里的歌\"。典型取值：叶惠美、范特西、十一月的萧邦。"
+          },
+          "lyricist": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            },
+            "uniqueItems": true,
+            "description": "作词人，开放型，多值，维度内 AND。歌词创作者姓名，数组传入。与 composer(作曲人) 不同——lyricist 对应\"作词/填词/写词\"，composer 对应\"作曲/谱曲/写曲\"；用户只说\"某人写的歌\"且无法区分词曲时，优先填 lyricist。典型取值：林夕、方文山、黄霑。"
+          },
+          "composer": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            },
+            "uniqueItems": true,
+            "description": "作曲人，开放型，多值，维度内 AND。旋律创作者姓名，数组传入。与 lyricist(作词人) 的区分见 lyricist 说明。典型取值：李宗盛、久石让、周杰伦。"
+          },
+          "version": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "live版",
+                "免费版",
+                "原唱"
+              ]
+            },
+            "minItems": 1,
+            "uniqueItems": true,
+            "description": "歌曲版本，固定候选，多值，维度内 AND。歌曲的呈现形态或音轨版本，数组传入；每个元素必须归一化为枚举之一：dj版、remix版、live版、纯音乐、男声版、女声版、抖音版、伴奏版、铃声版、免费版、片段版、广场舞、翻唱、原唱。归一化示例：\"现场版/演唱会版\"→live版、\"卡拉OK/去人声\"→伴奏版、\"电音\"→remix版。与 gender(性别) 不同——\"男声版/女声版\"描述同一首歌的翻唱音轨版本，属 version；\"男歌手唱的歌\"描述演唱者属性，属 gender。无法归一化时不传该维度。"
+          },
+          "gender": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "女",
+                "男",
+                "组合",
+                "女团"
+              ]
+            },
+            "minItems": 1,
+            "uniqueItems": true,
+            "description": "歌手性别/组合形态，固定候选，多值，维度内 AND。无具体歌手名、仅按演唱者性别或组合形态筛选时使用，数组传入；每个元素必须归一化为枚举之一：女、男、组合、女团。归一化示例：\"女生/女声/女的\"→女，\"男生/男的\"→男，\"乐队/团体/男团\"→组合，\"女子组合\"→女团。用户未提及或男女均可时不传该维度。与 singer(歌手名) 不同——singer 是具体名称，gender 是属性限定；与 version 中\"男声版/女声版\"的区分见 version 说明。适用场景如\"放几首女歌手的歌\"、\"来点女团的歌\"。"
+          },
+          "ip": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            },
+            "uniqueItems": true,
+            "description": "影视IP，开放型，多值，维度内 AND。歌曲所关联的影视剧、动漫、游戏等作品名称，数组传入。适用场景如\"甄嬛传的主题曲\"、\"想听哪吒里的插曲\"。与 song(歌曲名) 的区分见 song 说明。典型取值：甄嬛传、哪吒、原神、灌篮高手。"
+          },
+          "tag": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": []
+            },
+            "minItems": 1,
+            "uniqueItems": true,
+            "description": "音乐标签，固定候选封闭枚举，多值，维度内 AND。覆盖曲风、情绪、场景、主题等分类维度，酷狗「语搜标签」标签枚举表将其细分为 8 个子类：流派(流行/摇滚/民谣/爵士/古典/嘻哈…)、场景(运动/KTV/咖啡厅/婚礼现场/哄你入睡…)、心情(动感节拍/安静舒缓/抒情伤怀/活泼欢乐…)、主题(爱情/失恋/经典/抖音/翻唱…)、乐器(钢琴/古筝/萨克斯/二胡…)、节日(圣诞节/新春佳节…，已并入场景枚举)、语言(粤语/日语/法语…)、IP(综艺/电视剧/电影…)。数组传入，每个元素必须取自枚举(共374个)，常见表述需归一后再传入：如\"伤感\"→抒情伤怀、\"欢快\"→活泼欢乐、\"说唱\"→嘻哈、\"开车\"→在路上、\"睡前\"→哄你入睡、\"春节\"→新春佳节、\"婚礼\"→婚礼现场。无法归一到枚举时不传该维度，不要硬填近似值。多个标签用数组元素传入，维度内逻辑为 AND(所有标签均需满足)。与 version(版本) 不同——tag 描述\"歌曲属于什么风格/情绪\"，version 描述\"这首歌是哪个音轨版本\"。"
+          },
+          "lyrics": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            },
+            "minItems": 1,
+            "uniqueItems": true,
+            "description": "歌词片段，开放型，多值，维度内 AND。用户复述的歌词内容，数组传入；多个片段为维度内 AND，命中后由酷狗侧完成歌词匹配。可与其他所有业务槽位自由 AND 组合。与 song(歌曲名) 不同——song 是歌曲标题，lyrics 是歌曲内部唱词。适用场景如\"有句歌词是天青色等烟雨，周杰伦唱的歌\"。"
+          },
+          "toplist": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": []
+            },
+            "minItems": 1,
+            "uniqueItems": true,
+            "description": "榜单名，固定候选，多值，维度内 AND。酷狗侧正式支持的榜单实体，数组传入；每个元素必须取自枚举(共30个)，多个榜单为维度内 AND，常见别名需归一：如\"蒙面唱将猜猜猜第三季榜\"归一为\"蒙面唱猜猜猜第三季榜\"。不在枚举内的榜单不要传 toplist。可与其他所有业务槽位自由 AND 组合。与 tag(标签) 不同——toplist 是有排序含义的榜单实体，tag 是曲风/情绪等分类标签。适用场景如\"酷狗飙升榜里周杰伦的歌\"。"
+          }
+        },
+        "required": [
+          "retext"
+        ],
+        "anyOf": [
+          {
+            "required": [
+              "song"
+            ],
+            "properties": {
+              "song": {
+                "minItems": 1
+              }
+            }
+          },
+          {
+            "required": [
+              "singer"
+            ],
+            "properties": {
+              "singer": {
+                "minItems": 1
+              }
+            }
+          },
+          {
+            "required": [
+              "album"
+            ],
+            "properties": {
+              "album": {
+                "minItems": 1
+              }
+            }
+          },
+          {
+            "required": [
+              "lyricist"
+            ],
+            "properties": {
+              "lyricist": {
+                "minItems": 1
+              }
+            }
+          },
+          {
+            "required": [
+              "composer"
+            ],
+            "properties": {
+              "composer": {
+                "minItems": 1
+              }
+            }
+          },
+          {
+            "required": [
+              "version"
+            ],
+            "properties": {
+              "version": {
+                "minItems": 1
+              }
+            }
+          },
+          {
+            "required": [
+              "gender"
+            ],
+            "properties": {
+              "gender": {
+                "minItems": 1
+              }
+            }
+          },
+          {
+            "required": [
+              "ip"
+            ],
+            "properties": {
+              "ip": {
+                "minItems": 1
+              }
+            }
+          },
+          {
+            "required": [
+              "tag"
+            ],
+            "properties": {
+              "tag": {
+                "minItems": 1
+              }
+            }
+          },
+          {
+            "required": [
+              "lyrics"
+            ],
+            "properties": {
+              "lyrics": {
+                "minItems": 1
+              }
+            }
+          },
+          {
+            "required": [
+              "toplist"
+            ],
+            "properties": {
+              "toplist": {
+                "minItems": 1
+              }
+            }
+          }
+        ],
+        "additionalProperties": false,
+        "examples": [
+          {
+            "scenario": "K歌-点唱具体歌曲：song 提槽",
+            "retext": "我想唱一首晴天",
+            "song": [
+              "晴天"
+            ]
+          },
+          {
+            "scenario": "K歌-按歌手找歌来K：singer 提槽",
+            "retext": "搜下周杰伦的歌来K",
+            "singer": [
+              "周杰伦"
+            ]
+          },
+          {
+            "scenario": "K歌-找伴奏：song 提槽，\"伴奏\"归一为 version 枚举的伴奏版",
+            "retext": "帮我搜孤勇者的伴奏",
+            "song": [
+              "孤勇者"
+            ],
+            "version": [
+              "伴奏版"
+            ]
+          },
+          {
+            "scenario": "K歌-多槽位 AND 组合(歌手 + 歌曲)",
+            "retext": "想唱周杰伦的晴天",
+            "singer": [
+              "周杰伦"
+            ],
+            "song": [
+              "晴天"
+            ]
+          },
+          {
+            "scenario": "K歌-排他类 toplist 单独使用(取值须在30个榜单枚举内)",
+            "retext": "我要K酷狗飙升榜里的歌",
+            "toplist": [
+              "酷狗飙升榜"
+            ]
+          },
+          {
+            "scenario": "反例-空槽位占位",
+            "retext": "唱一首晴天",
+            "song": [
+              "晴天"
+            ]
+          },
+          {
+            "scenario": "反例(不应调用本工具)：用户仅想听/播放而非唱/K歌，走 music_song_search",
+            "retext": "放周杰伦的晴天",
+            "singer": [
+              "周杰伦"
+            ],
+            "song": [
+              "晴天"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "tool_name": "music_song_qqmusic_search",
+      "description": "QQ音乐歌曲搜索工具(music_song_qqmusic_search)。当用户表达在 QQ 音乐中搜索/播放歌曲的意图时触发。必须包含：QQ音乐时，才能调用。\\n入参：仅需传入 keywords 数组，由 QQ 音乐后端拼接检索；song/singer/ip/toplist 不作为独立字段，统一并入 keywords。\\nkeywords 提取规则：仅从用户语料提取以下 4 类有效槽位的值，按词拆为数组元素——song(歌曲名，如“恐龙抗狼”)、ip(影视/游戏/动漫作品名，如“泰坦尼克号”)、singer(歌手名，如“周杰伦”)、toplist(榜单名，如“飙升榜”)。“QQ音乐”是平台名，非有效槽位，不入 keywords。去除“播放”、“来点”等指令性前后缀；情绪/场景/氛围等非 4 类有效槽位的描述词不要放入 keywords。\\n默认值：4 类有效槽位均提不出时，keywords 填默认值“热门”，不要传空数组。",
+      "parameters": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "name": "music_song_qqmusic_search",
+        "description": "QQ音乐歌曲搜索工具(music_song_qqmusic_search)。当用户表达在 QQ 音乐中搜索/播放歌曲的意图时触发。必须包含：QQ音乐时，才能调用。\n入参：仅需传入 keywords 数组，由 QQ 音乐后端拼接检索；song/singer/ip/toplist 不作为独立字段，统一并入 keywords。\nkeywords 提取规则：仅从用户语料提取以下 4 类有效槽位的值，按词拆为数组元素——song(歌曲名，如“恐龙抗狼”)、ip(影视/游戏/动漫作品名，如“泰坦尼克号”)、singer(歌手名，如“周杰伦”)、toplist(榜单名，如“飙升榜”)。“QQ音乐”是平台名，非有效槽位，不入 keywords。去除“播放”、“来点”等指令性前后缀；情绪/场景/氛围等非 4 类有效槽位的描述词不要放入 keywords。\n默认值：4 类有效槽位均提不出时，keywords 填默认值“热门”，不要传空数组。\n禁用场景：用户没有表示在QQ音乐搜索/播放歌曲时，禁用此工具",
+        "type": "object",
+        "properties": {
+          "retext": {
+            "type": "string",
+            "minLength": 1,
+            "description": "改写后的语句，本身不参与槽位检索。"
+          },
+          "keywords": {
+            "type": "array",
+            "default": [
+              "热门"
+            ],
+            "description": "关键字数组，每个元素为一个有效槽位值，由 QQ 音乐后端拼接后检索匹配。仅提取 4 类有效槽位——song(歌曲名)、ip(影视/游戏/动漫名)、singer(歌手名)、toplist(榜单名)，多元素间为 AND。例：“播放QQ音乐恐龙抗狼”提取 song“恐龙抗狼”(“QQ音乐”为平台名不入)；“用QQ音乐放周杰伦的晴天”提取 singer“周杰伦”+song“晴天”；“放QQ音乐飙升榜”提取 toplist“飙升榜”；“播放QQ音乐上的流行歌曲”4类槽位均提不出，填默认“热门”。",
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "description": "单个关键字(有效槽位值或默认值“热门”)，禁止空串。"
+            },
+            "uniqueItems": true,
+            "minItems": 1
+          }
+        },
+        "required": [
+          "retext",
+          "keywords"
+        ],
+        "additionalProperties": false,
+        "examples": [
+          {
+            "scenario": "歌曲(song)：用户说“播放QQ音乐恐龙抗狼”，“QQ音乐”为平台名非有效槽位，仅取歌曲名",
+            "retext": "播放QQ音乐恐龙抗狼",
+            "keywords": [
+              "恐龙抗狼"
+            ]
+          },
+          {
+            "scenario": "歌手+歌曲(singer+song)：用户说“用QQ音乐放周杰伦的晴天”",
+            "retext": "用QQ音乐放周杰伦的晴天",
+            "keywords": [
+              "周杰伦",
+              "晴天"
+            ]
+          },
+          {
+            "scenario": "影视IP(ip)：用户说“在QQ音乐里听泰坦尼克号主题曲”",
+            "retext": "在QQ音乐里听泰坦尼克号主题曲",
+            "keywords": [
+              "泰坦尼克号"
+            ]
+          },
+          {
+            "scenario": "榜单(toplist)：用户说“放QQ音乐飙升榜”，“QQ音乐”为平台名非有效槽位，仅取榜单名",
+            "retext": "放QQ音乐飙升榜",
+            "keywords": [
+              "飙升榜"
+            ]
+          },
+          {
+            "scenario": "默认值：song/ip/singer/toplist 4类有效槽位均提不出(如“播放QQ音乐上的流行歌曲”等情绪/场景/泛化描述)，填默认“热门”",
+            "retext": "播放QQ音乐上的流行歌曲",
+            "keywords": [
+              "热门"
+            ]
+          },
+          {
+            "scenario": "反例:非QQ音乐场景”",
+            "retext": "随便放点什么歌",
+            "keywords": [
+              "热门"
+            ]
+          },
+          {
+            "scenario": "反例:keyword传空数组”",
+            "retext": "QQ音乐放周杰伦的晴天",
+            "keywords": []
+          }
+        ]
+      }
+    },
+    {
+      "tool_name": "music_song_recommend",
+      "description": "音乐随意听工具(music_song_recommend)。当用户表达\\\"随意听/随便听/随心听\\\"这类无明确目标、由系统个性化推荐播歌的意图时触发。查询直达词：随心听。\\n处理逻辑：不提取任何检索槽位，直接进入个性化推荐播歌链路(推荐结果由酷狗侧按用户画像返回)。\\n触发示例：\\\"随心听\\\"、\\\"随便放点歌\\\"、\\\"随意听\\\"。\\n边界与禁用场景：1. 用户带任何明确检索条件(歌手/歌曲/专辑/榜单/标签等，如\\\"放周杰伦的歌\\\")时，走 music_song_search，禁止调用本工具；2. 情绪/场景/氛围等模糊描述找歌(如\\\"心情不好了来点歌\\\")，禁止调用本工具；3. 想唱/K歌走 music_ksong_search。",
+      "parameters": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "name": "music_song_recommend",
+        "description": "音乐随意听工具(music_song_recommend)。当用户表达\"随意听/随便听/随心听\"这类无明确目标、由系统个性化推荐播歌的意图时触发。查询直达词：随心听。\n处理逻辑：不提取任何检索槽位，直接进入个性化推荐播歌链路(推荐结果由酷狗侧按用户画像返回)。\n触发示例：\"随心听\"、\"随便放点歌\"、\"随意听\"。\n边界与禁用场景：1. 用户带任何明确检索条件(歌手/歌曲/专辑/榜单/标签等，如\"放周杰伦的歌\")时，走 music_song_search，禁止调用本工具；2. 想唱/K歌走 music_ksong_search。",
+        "type": "object",
+        "properties": {
+          "retext": {
+            "type": "string",
+            "minLength": 1,
+            "description": "改写后的语句，如\"随心听\"、\"随便放点歌\"。用于链路追踪与意图泛化兜底，本身不参与检索。"
+          }
+        },
+        "required": [
+          "retext"
+        ],
+        "additionalProperties": false,
+        "examples": [
+          {
+            "scenario": "直达词触发：用户直接说\"随心听\"",
+            "retext": "随心听"
+          },
+          {
+            "scenario": "随意听泛化说法：无任何明确目标，系统推荐播歌",
+            "retext": "随便放点歌"
+          },
+          {
+            "scenario": "随意听泛化说法：想听点什么，无明确检索条件",
+            "retext": "放点随便听听的音乐"
+          },
+          {
+            "scenario": "反例(不应调用本工具)：带明确歌手，走 music_song_search",
+            "retext": "放周杰伦的歌"
+          },
+          {
+            "scenario": "反例(不应调用本工具)：带明确专辑",
+            "retext": "放周杰伦的范特西专辑的歌"
+          }
+        ]
+      }
+    },
+    {
+      "tool_name": "music_song_history",
+      "description": "音乐历史记录工具(music_song_history)。当用户表达查看/播放\\\"音乐历史记录/播放历史/最近播放\\\"这类基于历史播放数据的意图时触发。\\n触发方式：1. 中控直达配置；2. 模型意图用于泛化\\\"音乐历史记录\\\"相关说法，处理逻辑统一跳转到音乐历史记录。\\n处理逻辑(按终端能力分流)：如果终端支持起播，直接跳转播放页，从历史记录拿数据播放；否则跳转历史记录页面并亮屏。\\n触发示例：\\\"播放历史记录\\\"、\\\"放我最近听的歌\\\"、\\\"打开音乐播放历史\\\"。\\n边界与禁用场景：1. 用户要找的是\\\"收藏\\\"内容(如\\\"播放我收藏的歌曲\\\")时，走 music_song_favorite_search，禁止调用本工具；2. 带明确检索条件找新歌(如\\\"放周杰伦的晴天\\\")走 music_song_search；3. 想唱/K歌走 music_ksong_search。",
+      "parameters": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "name": "music_song_history",
+        "description": "音乐历史记录工具(music_song_history)。当用户表达查看/播放\"音乐历史记录/播放历史/最近播放\"这类基于历史播放数据的意图时触发。\n触发方式：1. 中控直达配置；2. 模型意图用于泛化\"音乐历史记录\"相关说法，处理逻辑统一跳转到音乐历史记录。\n处理逻辑(按终端能力分流)：如果终端支持起播，直接跳转播放页，从历史记录拿数据播放；否则跳转历史记录页面并亮屏。\n触发示例：\"播放历史记录\"、\"放我最近听的歌\"、\"打开音乐播放历史\"。\n边界与禁用场景：1. 用户要找的是\"收藏\"内容(如\"播放我收藏的歌曲\")时，走 music_song_favorite_search，禁止调用本工具；2. 带明确检索条件找新歌(如\"放周杰伦的晴天\")走 music_song_search；3. 想唱/K歌走 music_ksong_search。",
+        "type": "object",
+        "properties": {
+          "retext": {
+            "type": "string",
+            "minLength": 1,
+            "description": "改写后的语句，如\"播放历史记录\"、\"放我最近听的歌\"。用于链路追踪与意图泛化兜底，本身不参与检索。"
+          }
+        },
+        "required": [
+          "retext"
+        ],
+        "additionalProperties": false,
+        "examples": [
+          {
+            "scenario": "泛化说法：音乐历史记录",
+            "retext": "播放历史记录"
+          },
+          {
+            "scenario": "泛化说法：最近播放过的歌",
+            "retext": "放我最近听的歌"
+          },
+          {
+            "scenario": "泛化说法：打开播放历史页面",
+            "retext": "打开音乐播放历史"
+          },
+          {
+            "scenario": "泛化说法：接着上次听的继续播",
+            "retext": "接着上次听的歌继续放"
+          },
+          {
+            "scenario": "反例(不应调用本工具)：用户要找收藏内容，走 music_song_favorite_search",
+            "retext": "播放我收藏的歌曲"
+          }
+        ]
+      }
+    },
+    {
+      "tool_name": "tvchannel_music_search",
+      "description": "频道搜索音乐工具(tvchannel_music_search)。当用户表达\\\"在某个频道/电视台/频道号上搜索或播放音乐\\\"这类频道+音乐的组合意图时触发，即在指定电视频道语境下找歌/放歌的请求。\\n处理逻辑：固定回复不支持。\\n触发示例：\\\"CCTV15放首歌\\\"、\\\"在音乐频道放周杰伦的歌\\\"、\\\"用5频道放音乐\\\"。\\n边界与禁用场景：1. 不带频道限定、单纯找歌/放歌(如\\\"放周杰伦的歌\\\")走 music_song_search，禁止调用本工具；2. 想唱/K歌走 music_ksong_search。",
+      "parameters": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "name": "tvchannel_music_search",
+        "description": "频道搜索音乐工具(tvchannel_music_search)。当用户表达\"在某个频道/电视台/频道号上搜索或播放音乐\"这类频道+音乐的组合意图时触发，即在指定电视频道语境下找歌/放歌的请求。\n处理逻辑：固定回复不支持。\n触发示例：\"CCTV15放首歌\"、\"在音乐频道放周杰伦的歌\"、\"用5频道放音乐\"。\n边界与禁用场景：1. 不带频道限定、单纯找歌/放歌(如\"放周杰伦的歌\")走 music_song_search，禁止调用本工具；2. 想唱/K歌走 music_ksong_search。",
+        "type": "object",
+        "properties": {
+          "retext": {
+            "type": "string",
+            "minLength": 1,
+            "description": "改写后的语句，如\"CCTV15放首歌\"、\"在音乐频道放周杰伦的歌\"。用于链路追踪与意图泛化兜底，本身不参与检索。"
+          }
+        },
+        "required": [
+          "retext"
+        ],
+        "additionalProperties": false,
+        "examples": [
+          {
+            "scenario": "频道+音乐：指定音乐频道放歌",
+            "retext": "CCTV15放首歌"
+          },
+          {
+            "scenario": "频道+音乐：频道语境下搜索具体歌曲",
+            "retext": "在音乐频道放周杰伦的歌"
+          },
+          {
+            "scenario": "频道+音乐：频道号指定播放",
+            "retext": "用5频道放音乐"
+          },
+          {
+            "scenario": "反例(不应调用本工具)：不带频道限定，走 music_song_search",
+            "retext": "放周杰伦的歌"
+          }
+        ]
+      }
+    },
+    {
+      "tool_name": "music_song_favorite_search",
+      "description": "音乐收藏搜索工具(music_song_favorite_search)。当用户表达播放/搜索\\\"自己收藏的音乐内容\\\"的意图时触发，覆盖三类收藏对象：1. 收藏的歌曲(如\\\"我想听我收藏的歌曲\\\")；2. 收藏的歌单(如\\\"播放我收藏的歌单\\\"、\\\"播放收藏歌单XXXXXX\\\")；3. 收藏的专辑(如\\\"播放我收藏的专辑\\\")。\\n处理逻辑：如果终端支持起播，直接跳转播放页，从收藏记录拿数据播放；否则跳转收藏记录页面并亮屏。\\n触发示例：\\\"我想听我收藏的歌曲\\\"、\\\"播放我收藏的歌单\\\"、\\\"播收藏的专辑\\\"。\\n边界与禁用场景：1. 用户要找的是\\\"历史记录/最近播放\\\"(如\\\"放我最近听的歌\\\")时，走 music_song_history，禁止调用本工具；2. 播放未收藏的普通歌曲/歌手/专辑(如\\\"放周杰伦的晴天\\\")走 music_song_search；3. \\\"随意听/随心听\\\"这类无目标推荐播歌走 music_song_recommend。",
+      "parameters": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "name": "music_song_favorite_search",
+        "description": "音乐收藏搜索工具(music_song_favorite_search)。当用户表达播放/搜索\"自己收藏的音乐内容\"的意图时触发，覆盖三类收藏对象：1. 收藏的歌曲(如\"我想听我收藏的歌曲\")；2. 收藏的歌单(如\"播放我收藏的歌单\"、\"播放收藏歌单XXXXXX\")；3. 收藏的专辑(如\"播放我收藏的专辑\")。\n处理逻辑：如果终端支持起播，直接跳转播放页，从收藏记录拿数据播放；否则跳转收藏记录页面并亮屏。\n触发示例：\"我想听我收藏的歌曲\"、\"播放我收藏的歌单\"、\"播收藏的专辑\"。\n边界与禁用场景：1. 用户要找的是\"历史记录/最近播放\"(如\"放我最近听的歌\")时，走 music_song_history，禁止调用本工具；2. 播放未收藏的普通歌曲/歌手/专辑(如\"放周杰伦的晴天\")走 music_song_search；3. \"随意听/随心听\"这类无目标推荐播歌走 music_song_recommend。",
+        "type": "object",
+        "properties": {
+          "retext": {
+            "type": "string",
+            "minLength": 1,
+            "description": "改写后的语句，如\"我想听我收藏的歌曲\"、\"播放我收藏的歌单\"。用于链路追踪与意图泛化兜底，本身不参与检索。"
+          }
+        },
+        "required": [
+          "retext"
+        ],
+        "additionalProperties": false,
+        "examples": [
+          {
+            "scenario": "收藏的歌曲：我想听我收藏的歌曲",
+            "retext": "我想听我收藏的歌曲"
+          },
+          {
+            "scenario": "收藏的歌曲：播放我收藏的歌曲",
+            "retext": "播放我收藏的歌曲"
+          },
+          {
+            "scenario": "收藏的歌曲：放一首我收藏的歌",
+            "retext": "放一首我收藏的歌"
+          },
+          {
+            "scenario": "收藏的歌曲：播放我收藏的列表内的音乐",
+            "retext": "播放我收藏的列表内的音乐"
+          },
+          {
+            "scenario": "收藏的歌曲：播放我收藏列表中的歌曲",
+            "retext": "播放我收藏列表中的歌曲"
+          },
+          {
+            "scenario": "收藏的歌曲：我想听我收藏的列表里的歌",
+            "retext": "我想听我收藏的列表里的歌"
+          },
+          {
+            "scenario": "收藏的歌曲：来一首我收藏列表里的歌",
+            "retext": "来一首我收藏列表里的歌"
+          },
+          {
+            "scenario": "收藏的歌曲：播放我收藏的列表",
+            "retext": "播放我收藏的列表"
+          },
+          {
+            "scenario": "收藏的歌曲：播放我的收藏列表里的歌",
+            "retext": "播放我的收藏列表里的歌"
+          },
+          {
+            "scenario": "收藏的歌曲：要听一首我收藏的歌曲",
+            "retext": "要听一首我收藏的歌曲"
+          },
+          {
+            "scenario": "收藏的歌曲：我要听我收藏的歌曲",
+            "retext": "我要听我收藏的歌曲"
+          },
+          {
+            "scenario": "收藏的歌单：播放收藏歌单XXXXXX(带具体歌单名)",
+            "retext": "播放收藏歌单XXXXXX"
+          },
+          {
+            "scenario": "收藏的歌单：听我收藏的歌单",
+            "retext": "听我收藏的歌单"
+          },
+          {
+            "scenario": "收藏的歌单：播放我收藏的歌单",
+            "retext": "播放我收藏的歌单"
+          },
+          {
+            "scenario": "收藏的歌单：播放收藏歌单",
+            "retext": "播放收藏歌单"
+          },
+          {
+            "scenario": "收藏的专辑：播放我收藏的专辑",
+            "retext": "播放我收藏的专辑"
+          },
+          {
+            "scenario": "收藏的专辑：播收藏的专辑",
+            "retext": "播收藏的专辑"
+          },
+          {
+            "scenario": "反例(不应调用本工具)：找历史记录/最近播放，走 music_song_history",
+            "retext": "放我最近听的歌"
+          }
+        ]
+      }
+    }
+  ]
+}

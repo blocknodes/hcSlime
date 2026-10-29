@@ -1,0 +1,306 @@
+{
+  "domain": "教育",
+  "domain_key": "education",
+  "tools": [
+    {
+      "tool_name": "edu_search",
+      "description": "教育媒资组合式搜索工具(edu_search)。当用户表达搜索、查找、推荐K12教育内容的意图时触发，支持按 7个维度筛选：6个精确匹配维度(title/grade/first_subject/figures/material_version/semester)、1 个状态维度(is_fee 0=免费|1=付费)。同一维度多值通过 values 数组+operator 字段指定逻辑(or任一匹配/and全部匹配, 默认or)；不同维度间通过 BoolNode 组合：and(与)、or(或)、not(非)，支持任意嵌套",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "query": {
+            "$ref": "#/definitions/QueryNode",
+            "description": "用户自定义的搜索查询根节点。支持 and/or/not 复合布尔节点或单个叶子条件节点，可任意层嵌套。"
+          }
+        },
+        "required": [
+          "query"
+        ],
+        "additionalProperties": false,
+        "definitions": {
+          "QueryNode": {
+            "description": "查询节点，支持两种形态：1) 布尔复合节点（and/or/not）；2) 叶子条件节点（单个维度的匹配条件）。递归结构，布尔节点的子节点仍是 QueryNode。",
+            "oneOf": [
+              {
+                "$ref": "#/definitions/BoolNode"
+              },
+              {
+                "$ref": "#/definitions/LeafNode"
+              }
+            ]
+          },
+          "BoolNode": {
+            "description": "布尔逻辑组合节点，支持 AND、OR、NOT 三种组合，可任意嵌套。三者互斥，一个节点只能带其中一个键。",
+            "type": "object",
+            "oneOf": [
+              {
+                "properties": {
+                  "and": {
+                    "type": "array",
+                    "minItems": 1,
+                    "uniqueItems": true,
+                    "items": {
+                      "$ref": "#/definitions/QueryNode"
+                    },
+                    "description": "AND 逻辑：所有子节点条件必须同时满足，如「三年级的数学」拼为 (grade:三年级) AND (first_subject:数学)。"
+                  }
+                },
+                "required": [
+                  "and"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "properties": {
+                  "or": {
+                    "type": "array",
+                    "minItems": 1,
+                    "uniqueItems": true,
+                    "items": {
+                      "$ref": "#/definitions/QueryNode"
+                    },
+                    "description": "OR 逻辑：任一子节点条件满足即命中，用于「或者」「要么……要么……」的跨维度组合。同一字段的多个候选值请改用叶子节点的 values + operator=or，不要拆成多个同字段 or 子节点。"
+                  }
+                },
+                "required": [
+                  "or"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "properties": {
+                  "not": {
+                    "$ref": "#/definitions/QueryNode",
+                    "description": "NOT 逻辑：对单个子节点条件取反，用于「除了……以外」「不要……」。not 只接受对象，不是数组；要对多个条件同时取反，用 not 包裹 and/or 复合节点。"
+                  }
+                },
+                "required": [
+                  "not"
+                ],
+                "additionalProperties": false
+              }
+            ]
+          },
+          "LeafNode": {
+            "description": "叶子条件节点，描述对某一搜索维度的具体匹配条件。两类按 field 取值区分：开放型或半固定维度用 ExactFieldCondition，固定候选的状态维度（免付费）用 StatusFieldCondition。",
+            "type": "object",
+            "oneOf": [
+              {
+                "$ref": "#/definitions/ExactFieldCondition"
+              },
+              {
+                "$ref": "#/definitions/StatusFieldCondition"
+              }
+            ]
+          },
+          "ExactFieldCondition": {
+            "description": "精确匹配条件，用于开放型或半固定取值的检索维度。value 与 values 互斥，只能出现其一；operator 仅对 values 有效，使用 value 单值时不得传。figures 与 semester 为固定候选，格式由下方 allOf 按 field 收窄校验。",
+            "type": "object",
+            "properties": {
+              "field": {
+                "type": "string",
+                "description": "搜索维度字段名。取值必须来自下列候选，不得自造；各候选的语义辨析与格式要求见其自身 description。",
+                "oneOf": [
+                  {
+                    "const": "grade",
+                    "examples": [
+                      "一年级",
+                      "三年级",
+                      "七年级",
+                      "高一"
+                    ],
+                    "description": "年级（半固定候选，全集见 dim_data/edu_grade.csv，共 12 个，覆盖一年级至高三）。上例为高频值，用户说法不在其中时按语义就近归一化到维表内取值（如「初一」→「七年级」）；无法归一化时不传该字段，不要自造新值。与 figures 不同——grade 是具体年级，figures 是小学/初中/高中学段粗分类。"
+                  },
+                  {
+                    "const": "first_subject",
+                    "examples": [
+                      "语文",
+                      "数学",
+                      "英语",
+                      "物理",
+                      "化学"
+                    ],
+                    "description": "学科（半固定候选，全集见 dim_data/edu_first_subject.csv，共 17 个，含语文/语文素养、数学/数学思维、英语/英语能力等相近候选）。上例为高频值，用户说法不在其中时按语义就近归一化到维表内取值；无法归一化时不传该字段，不要自造新值。"
+                  },
+                  {
+                    "const": "figures",
+                    "description": "学段（固定候选，共 3 个：小学、初中、高中）。用户说法不在其中时按语义就近归一化到候选内取值，无法归一化时不传该字段，不要自造新值。与 grade 不同——figures 是学段粗分类，用户说出具体年级时用 grade。"
+                  },
+                  {
+                    "const": "material_version",
+                    "examples": [
+                      "人教版",
+                      "北师大版",
+                      "苏教版"
+                    ],
+                    "description": "教材版本（开放型，无固定候选集，无维表）。需进行归一化处理，例如：「人教」「人教版」「人民教育出版社」统一归一化为「人教版」；「北师大」「北师大版」统一归一化为「北师大版」。上例仅为常见取值，无归一化目标时填用户原词。"
+                  },
+                  {
+                    "const": "semester",
+                    "description": "学期（固定候选，共 2 个：上半学期、下半学期）。需进行归一化处理，例如：「上」「上册」「上学期」统一归一化为「上半学期」；「下」「下册」「下学期」统一归一化为「下半学期」。"
+                  }
+                ]
+              },
+              "value": {
+                "type": "string",
+                "minLength": 1,
+                "description": "单值精确匹配，拼接为 (field:value)。仅传一个候选值时使用；多个候选值请改用 values + operator。与 values 互斥，使用 value 时不得传 operator。"
+              },
+              "values": {
+                "type": "array",
+                "minItems": 1,
+                "uniqueItems": true,
+                "items": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "description": "多值匹配数组。各值之间按 operator 连接，未传 operator 时默认 or。与 value 互斥。"
+              },
+              "operator": {
+                "type": "string",
+                "enum": [
+                  "and",
+                  "or"
+                ],
+                "default": "or",
+                "description": "多值逻辑关系。or=任一匹配（默认），and=全部匹配。【重要规则】：在自然语言中，当用户表达「A和B」「A或B」「A跟B」「A以及B」等并列关系时，通常表示希望获取包含A或B的任意资源，此时必须使用 \"or\"。只有当业务上确实要求同时满足所有条件（例如同时包含语文和数学的跨学科综合课）时，才使用 \"and\"。仅对 values 有效，使用 value 单值时不应传。"
+              }
+            },
+            "required": [
+              "field"
+            ],
+            "oneOf": [
+              {
+                "required": [
+                  "value"
+                ],
+                "not": {
+                  "required": [
+                    "operator"
+                  ]
+                }
+              },
+              {
+                "required": [
+                  "values"
+                ]
+              }
+            ],
+            "additionalProperties": false,
+            "allOf": [
+              {
+                "if": {
+                  "properties": {
+                    "field": {
+                      "const": "figures"
+                    }
+                  },
+                  "required": [
+                    "field"
+                  ]
+                },
+                "then": {
+                  "properties": {
+                    "value": {
+                      "enum": [
+                        "小学",
+                        "初中",
+                        "高中"
+                      ]
+                    },
+                    "values": {
+                      "items": {
+                        "enum": [
+                          "小学",
+                          "初中",
+                          "高中"
+                        ]
+                      }
+                    }
+                  }
+                }
+              },
+              {
+                "if": {
+                  "properties": {
+                    "field": {
+                      "const": "semester"
+                    }
+                  },
+                  "required": [
+                    "field"
+                  ]
+                },
+                "then": {
+                  "properties": {
+                    "value": {
+                      "enum": [
+                        "上半学期",
+                        "下半学期"
+                      ]
+                    },
+                    "values": {
+                      "items": {
+                        "enum": [
+                          "上半学期",
+                          "下半学期"
+                        ]
+                      }
+                    }
+                  }
+                }
+              }
+            ]
+          },
+          "StatusFieldCondition": {
+            "description": "状态标识条件（固定候选）。用于免付费等布尔型状态字段，只做状态过滤，不参与语义匹配。字段单值，不提供多值与 operator。",
+            "type": "object",
+            "properties": {
+              "field": {
+                "type": "string",
+                "description": "状态字段名。仅用于固定候选的状态维度，开放型取值请改用 ExactFieldCondition。",
+                "oneOf": [
+                  {
+                    "const": "is_fee",
+                    "description": "免付费标识。"
+                  }
+                ]
+              },
+              "value": {
+                "type": "integer",
+                "enum": [
+                  0,
+                  1
+                ],
+                "description": "付费状态值。0=免费（对应自然语言「免费/不要钱」），1=付费（对应自然语言「付费/VIP」）。注意：自然语言中的「打折/五折/半价」等费用相关词需归一化为 0 或 1 后传入。"
+              }
+            },
+            "required": [
+              "field",
+              "value"
+            ],
+            "additionalProperties": false
+          }
+        }
+      }
+    },
+    {
+      "tool_name": "edu_fuzzy_search",
+      "description": "教育媒资非明确的复杂语义搜索。用于处理用户以自然语言、模糊描述、组合条件或问答等方式表达的教育内容查找意图。\\n适用场景：1. 拓展课媒资检索：如“三年级习题辅导”、“二年级下册数学试卷”、“考研帮科学实验视频”；2. 素质课搜索：如“音乐课”、“美术课”、“我想学围棋课”；3. 知识点媒资检索：如“一元二次方程解题知识点课程”、“初中英语语法知识点辅导”、“文言文知识点”；\\n不适用场景：简单明确的查询不要使用该工具，如“一年语文课程”、“打开英语课程”、“看初中语文课程”等直接指定了明确内容名称或固定分类的请求，应使用明确的检索工具。",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "retext": {
+            "type": "string",
+            "minLength": 1,
+            "description": "用户原始语句经过改写后的语句。"
+          }
+        },
+        "required": [
+          "retext"
+        ],
+        "additionalProperties": false
+      }
+    }
+  ]
+}
