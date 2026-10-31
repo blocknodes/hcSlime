@@ -33,7 +33,7 @@ _TOOL_SPECS = [
     {
         'name': 'educ_relate_search',
         'description': '少儿相关媒资搜索。当基于用户描述的参考媒资进行相似少儿内容推荐。\\n检索模式：DSL 组合检索（形态 A）。query 为递归布尔树，不同槽位间可 and/or/not 任意嵌套；同一槽位多值用 values + operator。\\n适用场景：用户表达了\\"基于某内容找类似的\\"、\\"推荐相关的\\"、\\"找同类型的\\"、\\"还有没有像XX这样的\\"等相似性推荐意图时使用，如\\"我想看类似小猪佩奇的动画片\\"、\\"推荐和汪汪队差不多的少儿节目\\"、\\"有没有熊出没那种动画\\"。\\n不适用场景：查询用户的历史观看记录改用educ_history；描述性等方式表达影视查找意图的场景，包括剧情描述、台词描述、复杂组合条件等改用educ_fuzzy_search；语料包含明显清晰的搜索槽位使用educ_search或educ_search_all。。\\n提参约束：同一字段的多个候选值优先用叶子节点的 values + operator=or，不要拆成多个同字段的 or 子节点。排除语义用外层 not 包裹，不要在 value 里写「非」「除了」。',
-        'required': ['query', 'action', 'retext'],
+        'required': ['query'],
     },
     {
         'name': 'educ_history',
@@ -62,8 +62,8 @@ from app.fanparams import (  # noqa: E402
 )
 
 _FIELD_CATALOG = """- title 作品名（动画/动漫/绘本/儿歌/节目名等）
-- content_type 内容形态（动画/动漫/绘本/儿歌/故事/科普/真人…）
-- children_second_genre 二级题材（如 经典/益智/搞笑/启蒙）
+- content_type 内容形态（动画/动漫/儿歌/故事/科普/真人…）
+- children_second_genre 二级题材（如 绘本/经典/益智/搞笑/启蒙）
 - children_third_genre 三级细分题材（如 情绪管理/社交智能/科普海洋）
 - training_objectives 培养目标（如 情绪管理/语言表达/逻辑思维）
 - multiple_intelligences 多元智能维度
@@ -89,6 +89,7 @@ _SYSTEM_TMPL = """你是电视语音助手的少儿内容意图解析器。读�
 按下面的顺序判断，**先命中先返回**：
 1. 明确要 **回看观看记录**（我看过、我的历史、播放记录）→ educ_history。
 2. 基于某个片名/角色要 **相似的**（类似、相似、像…一样、同类型、还有没有）→ educ_relate_search。
+   参考媒资用 query 条件树表达，**不要带 retext**。
 3. 只能整句语义理解的 **描述性表达**（封词、剧情描述、风格描述、「哪部/哪个」、
    成长主题、厉害在哪里…）→ educ_fuzzy_search。
 4. 剩下的都是「找内容」：
@@ -102,7 +103,8 @@ _SYSTEM_TMPL = """你是电视语音助手的少儿内容意图解析器。读�
 - action：搜索/查找/浏览 → search；播放/打开/看第几页 → play。
 - retext：用户原话（**不必自己清理标点**）。
 - sort：只在用户明确表达排序时才加。
-- educ_fuzzy_search / educ_relate_search / educ_history：params 填 {{"retext": "用户原话"}}（整句）。
+- educ_fuzzy_search / educ_history：params 填 {{"retext": "用户原话"}}（整句）。
+- educ_relate_search：params 填 {{"query": <条件树>}}，**不带 retext**；
 - fan_knowledge_agent：params 填 {{"messages":"用户原话整体传入（不要改写）"}}。
 
 【query 条件树】

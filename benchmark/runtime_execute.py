@@ -322,6 +322,7 @@ def _search_result_of(tool_frame: dict[str, Any]) -> list[dict[str, Any]]:
 def _run_runtime(retext: str, *, feature_code: str, device_id: int,
                  client_sid: str | None, tv_mode: str = "0",
                  debug: bool = True,
+                 enable_slow: bool = True,
                  slow_agent_url: str | None = None,
                  print_sse_params: bool = False) -> dict[str, Any]:
     """直连远端 runtime，聚合 TOOL 帧(含 llmSemantic 工具名/意图 + memoryContent 参数)。"""
@@ -333,7 +334,7 @@ def _run_runtime(retext: str, *, feature_code: str, device_id: int,
         "deviceid": device_id,
         "retext": retext,
         "tvmode": tv_mode,
-        "enable_slow": "true",
+        "enable_slow": "true" if enable_slow else "false",
         "debug": bool(debug),
     })
     if client_sid:
@@ -696,6 +697,10 @@ def main() -> int:
                         help="关闭 debug:true(默认开, 用于从 DEBUG 帧拿到数据集命名的真工具名)")
     parser.add_argument("--debug", dest="print_sse_params", action="store_true",
                         help="调用 SSE 前将最终请求 URL 和 payload 打印到标准错误")
+    parser.add_argument("--no-enable-slow", dest="enable_slow", action="store_false",
+                        help="关闭 enable_slow（默认开，payload 中 enable_slow=true）")
+    parser.add_argument("--enable-slow", dest="enable_slow", action="store_true",
+                        help="开启 enable_slow（默认行为）")
     parser.add_argument("--slow-agent-url", default=None,
                         help="透传给远端 runtime 的 slow_agent 回调地址(如 http://localhost:6006)；"
                              "默认不传其在 payload 中缺失")
@@ -754,6 +759,7 @@ def main() -> int:
             client_sid=args.client_sid,
             tv_mode=args.tv_mode,
             debug=args.debug,
+            enable_slow=args.enable_slow,
             slow_agent_url=args.slow_agent_url,
             print_sse_params=args.print_sse_params,
         )
